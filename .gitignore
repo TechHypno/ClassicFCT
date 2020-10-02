@@ -1,5 +1,3 @@
-*.zip
-*.7z
-*.png
-*.ahk
-*.log
+!*.toc
+!*.lua
+!*.md
