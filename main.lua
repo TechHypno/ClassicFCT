@@ -613,7 +613,7 @@ local CLEU_SWING_EVENT = {
     SWING_DAMAGE = true,
     SWING_HEAL = true,
     SWING_LEECH = true,
-    SWING_MISS = true
+    SWING_MISSED = true
 }
 local CLEU_SPELL_EVENT = {
     DAMAGE_SHIELD = true,
@@ -622,17 +622,17 @@ local CLEU_SPELL_EVENT = {
     SPELL_DAMAGE = true,
     SPELL_BUILDING_DAMAGE = true,
     SPELL_PERIODIC_DAMAGE = true,
-    RANGE_MISS = true,
-    SPELL_MISS = true,
-    SPELL_PERIODIC_MISS = true,
-    SPELL_BUILDING_MISS = true
+    RANGE_MISSED = true,
+    SPELL_MISSED = true,
+    SPELL_PERIODIC_MISSED = true,
+    SPELL_BUILDING_MISSED = true
 }
 local CLEU_MISS_EVENT = {
     SWING_MISSED = true,
     RANGE_MISSED = true,
     SPELL_MISSED = true,
-    SPELL_PERIODIC_MISS = true,
-    SPELL_BUILDING_MISS = true,
+    SPELL_PERIODIC_MISSED = true,
+    SPELL_BUILDING_MISSED = true,
 }
 local CLEU_DAMAGE_EVENT = {
     SWING_DAMAGE = true,
