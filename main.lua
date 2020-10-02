@@ -687,8 +687,8 @@ function f:COMBAT_LOG_EVENT_UNFILTERED()
         end
     elseif CLEU_MISS_EVENT[cleuEvent] then
         if CLEU_SWING_EVENT[cleuEvent] then
-            local spellid,spellname,school1,misstype,_,amount = arg12,arg13,arg14,arg15,arg16,arg17
-            self:MissEvent(unit, spellid, amount, misstype, petEvent, school1)
+            local misstype,_,amount = arg12,arg13,arg14
+            self:MissEvent(unit, nil, amount, misstype, petEvent, SCHOOL_MASK_PHYSICAL)
         else --its a SPELL event
             local spellid,spellname,school1,misstype,_,amount = arg12,arg13,arg14,arg15,arg16,arg17
             self:MissEvent(unit, spellid, amount, misstype, petEvent, school1)
