@@ -2,7 +2,7 @@
 ## Title: ClassicFCT
 ## Notes: Classic Floating Combat Text
 ## Author: TehHypno#2485, techhypno.com, tehypno@ttv
-## Version: R0.8a-beta
+## Version: R0.81a-beta
 ## SavedVariables: ClassicFCTCustomPresets, ClassicFCTConfig, ClassicFCTVars
 
 config.lua
