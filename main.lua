@@ -318,43 +318,6 @@ local GRID = {
     [223] = {x={o=-1, p=215}, y={o=1, p=219}},
     [224] = {x={o=-1, p=216}, y={o=-1, p=220}}
 }
--- local GRIDD = {}
--- function InitGrid(size)
---     local pow = math.pow
---     local radius = floor(size / 2)
---     for r = 0.5, radius, 0.5 do
---         for y = radius, -radius, -1 do
---             for x = radius, -radius, -1 do
---                 print(x, y, r, pow(x, 2) + pow(y, 2), pow(r, 2))
---                 if ((pow(x, 2) + pow(y, 2)) <= pow(r, 2)) then
---                     print(x, y)
---                 end
---             end
---         end
---     end
--- end
-
--- function InitGrid(r)
---     if r < 0 then return end
---     local dx, dy, er = -r, 0, 2-2*r
---     repeat
---         -- print(dx, dy)
---         print(-dx, dy)
---         print(-dy, -dx)
---         print(dx, -dy)
---         print(dy, dx)
---         print("-----")
---         r = er
---         if r > dx then
---             dx = dx + 1
---             er = er + dx * 2 + 1
---         end
---         if r <= dy then
---             dy = dy + 1
---             er = er + dy * 2 + 1
---         end
---     until (dx >= 0)
--- end
 
 
 
@@ -458,19 +421,13 @@ local ANIMATIONS = {
 
 local function UpdateFontString(self, index, elapsed)
     local fctConfig = CFCT.Config
-
-    -- local nameplate = C_NamePlate.GetNamePlateForUnit(self.state.unit)
-    -- if not nameplate then return true end
-
     if ((now - self.initialTime) > fctConfig.animDuration) then
-        return true --finished animating
+        return true
     end
-    -- self:SetText(string.format("%3.1f",now - self.initialTime))
     local catConfig = fctConfig[self.state.cat]
     if not (catConfig and catConfig.enabled) then
         return true
     end
-    -- self:SetText(index)
     self.state.height = self:GetStringHeight()
     self.state.width = self:GetStringWidth()
     for animName, animFunc in pairs(ANIMATIONS) do
@@ -481,13 +438,6 @@ local function UpdateFontString(self, index, elapsed)
             end
         end
     end
-    -- for name, animConfig in pairs(catConfig) do
-    --     if (type(animConfig) == 'table') and (type(ANIMATIONS[name]) == 'function') and animConfig.enabled then
-    --         if ANIMATIONS[name](self, catConfig, animConfig) then
-    --             return true
-    --         end
-    --     end
-    -- end
     self.state.height = self:GetStringHeight()
     self.state.width = self:GetStringWidth()
     local tn = UnitExists("target") and C_NamePlate.GetNamePlateForUnit("target")
@@ -606,9 +556,6 @@ f:SetScript("OnUpdate", function(self, elapsed)
         end
     end
     if CFCT.Config.preventOverlap then
-        -- for index, font in ipairs(anim) do
-        --     PushFrames(font, anim)
-        -- end
         SortFrames(anim)
     end
     if (now > cvarTimer) then
@@ -730,7 +677,6 @@ function f:COMBAT_LOG_EVENT_UNFILTERED()
     if not (playerEvent or petEvent) then return end
     if (destGUID == playerGUID) then return end
     local unit = nameplates[destGUID]
-    -- if (unit == nil) then return end
 
     if CLEU_DAMAGE_EVENT[cleuEvent] then
         if CLEU_SWING_EVENT[cleuEvent] then

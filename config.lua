@@ -1,5 +1,11 @@
 local addonName, CFCT = ...
 
+-- 9.0 PTR Fix
+local CreateFrame = function(type, name, parent, template)
+    local template = template or (BackdropTemplateMixin and "BackdropTemplate")
+    return CreateFrame(type, name, parent, template)
+end
+
 local DefaultPresets = {
     ["Classic"] = {
         animSpeed = 1,
@@ -1202,9 +1208,7 @@ local AttachModesMenu = {
 }
 
 
--- local AnimationsMenuFunc = function(self, dropdown)
---     print(dropdown, self.value)
--- end
+
 local AnimationsMenu = {
     Func = function(self, dropdown)
         
@@ -1227,12 +1231,7 @@ local AnimationsMenu = {
     },
 }
 
--- local FontStylesMenuFunc = function(self, dropdown)
---     local ConfigPath = dropdown.menuArgs and dropdown.menuArgs[1]
---     if (ConfigPath) then
---         SetValue(ConfigPath, self.value)
---     end
--- end
+
 local FontStylesMenu = {
     Func = function(self, dropdown)
         local ConfigPath = dropdown.configPath
@@ -1458,13 +1457,11 @@ local function CreateFontDropdown(self, label, tooltip, parent, point1, point2, 
     dropdown.middle = getglobal(dropdown:GetName() .. "Middle")
     dropdown.middle:SetWidth(150)
     dropdown.right = getglobal(dropdown:GetName() .. "Right")
-    -- UIDropDownMenu_SetAnchor(dropdown, 300, 0, "CENTER", UIParent, "LEFT")
     local function itemOnClick(self)
         SetValue(ConfigPath, self.value)
         UIDropDownMenu_SetSelectedValue(dropdown, self.value)
     end
     dropdown.initialize = function(dd)
-        -- print("Init")
         local curValue = GetValue(ConfigPath)
         local info = UIDropDownMenu_CreateInfo()
         for i,name in ipairs(fontList) do
@@ -1490,12 +1487,6 @@ local function CreateFontDropdown(self, label, tooltip, parent, point1, point2, 
     return dropdown
 end
 local function CreateDropDownMenu(self, label, tooltip, parent, point1, point2, x, y, menuItems, menuFuncORConfigPath)
-    -- menuItems = {
-    --     [1] = {
-    --         text = "Menu Item #1",
-    --         value = "menu_item_1"
-    --     }
-    -- }
     local dropdown = CreateFrame('Frame', self:NewFrameID(), self, "UIDropDownMenuTemplate")
     self:AddFrame(dropdown)
     dropdown:SetPoint(point1, parent, point2, x, y)
@@ -1722,16 +1713,7 @@ local function CreateFadeInAnimationPanel(self, cat, anchor, point1, point2, x, 
     
     local duration = c:CreateSlider("Duration", "Animation duration relative to global duration", f, "TOPLEFT", "TOPLEFT", 320, -12, 0.01, 1, 0.01, DefaultConfig[cat].FadeIn.duration, "Config."..cat..".FadeIn.duration")
     duration:SetFrameLevel(enabledCheckbox:GetFrameLevel()+1)
-    -- local inOutRatio = c:CreateSlider("Duration Ratio", "Duration ratio between time spent in Start to Mid phase and time spent in Mid to End phase.", f, "TOPLEFT", "TOPLEFT", 470, -12, 0.01, 1, 0.01, DefaultConfig[cat].FadeIn.inOutRatio, "Config."..cat..".FadeIn.inOutRatio")
-    
-    -- local initScale = c:CreateSlider("Start Scale", "Font Size", f, "TOPLEFT", "TOPLEFT", 170, -58, 0.1, 5, 0.01, DefaultConfig[cat].FadeIn.initScale, "Config."..cat..".FadeIn.initScale")
-    -- local midScale = c:CreateSlider("Mid Scale", "Font Size", f, "TOPLEFT", "TOPLEFT", 320, -58, 0.1, 5, 0.01, DefaultConfig[cat].FadeIn.midScale, "Config."..cat..".FadeIn.midScale")
-    -- local endScale = c:CreateSlider("End Scale", "Font Size", f, "TOPLEFT", "TOPLEFT", 470, -58, 0.1, 5, 0.01, DefaultConfig[cat].FadeIn.endScale, "Config."..cat..".FadeIn.endScale")
     duration:SetWidth(140)
-    -- inOutRatio:SetWidth(140)
-    -- initScale:SetWidth(140)
-    -- midScale:SetWidth(140)
-    -- endScale:SetWidth(140)
     enabledCheckbox:HookScript("OnShow", function(self)
         if self:GetChecked() then c:Show() else c:Hide() end
     end)
@@ -1751,16 +1733,7 @@ local function CreateFadeOutAnimationPanel(self, cat, anchor, point1, point2, x,
     
     local duration = c:CreateSlider("Duration", "Animation duration relative to global duration", f, "TOPLEFT", "TOPLEFT", 320, -12, 0.01, 1, 0.01, DefaultConfig[cat].FadeOut.duration, "Config."..cat..".FadeOut.duration")
     duration:SetFrameLevel(enabledCheckbox:GetFrameLevel()+1)
-    -- local inOutRatio = c:CreateSlider("Duration Ratio", "Duration ratio between time spent in Start to Mid phase and time spent in Mid to End phase.", f, "TOPLEFT", "TOPLEFT", 470, -12, 0.01, 1, 0.01, DefaultConfig[cat].FadeOut.inOutRatio, "Config."..cat..".FadeOut.inOutRatio")
-    
-    -- local initScale = c:CreateSlider("Start Scale", "Font Size", f, "TOPLEFT", "TOPLEFT", 170, -58, 0.1, 5, 0.01, DefaultConfig[cat].FadeOut.initScale, "Config."..cat..".FadeOut.initScale")
-    -- local midScale = c:CreateSlider("Mid Scale", "Font Size", f, "TOPLEFT", "TOPLEFT", 320, -58, 0.1, 5, 0.01, DefaultConfig[cat].FadeOut.midScale, "Config."..cat..".FadeOut.midScale")
-    -- local endScale = c:CreateSlider("End Scale", "Font Size", f, "TOPLEFT", "TOPLEFT", 470, -58, 0.1, 5, 0.01, DefaultConfig[cat].FadeOut.endScale, "Config."..cat..".FadeOut.endScale")
     duration:SetWidth(140)
-    -- inOutRatio:SetWidth(140)
-    -- initScale:SetWidth(140)
-    -- midScale:SetWidth(140)
-    -- endScale:SetWidth(140)
     enabledCheckbox:HookScript("OnShow", function(self)
         if self:GetChecked() then c:Show() else c:Hide() end
     end)
@@ -1820,16 +1793,7 @@ local function CreateScrollAnimationPanel(self, cat, anchor, point1, point2, x, 
     dirDropDown.middle:SetWidth(120)
     local distance = c:CreateSlider("Distance", "Scroll distance", f, "TOPLEFT", "TOPLEFT", 320, -40, 1, floor(WorldFrame:GetWidth()), 1, DefaultConfig[cat].Scroll.distance, "Config."..cat..".Scroll.distance")
     distance:SetFrameLevel(enabledCheckbox:GetFrameLevel()+1)
-    -- local inOutRatio = c:CreateSlider("Duration Ratio", "Duration ratio between time spent in Start to Mid phase and time spent in Mid to End phase.", f, "TOPLEFT", "TOPLEFT", 470, -12, 0.01, 1, 0.01, DefaultConfig[cat].Scroll.inOutRatio, "Config."..cat..".Scroll.inOutRatio")
-    
-    -- local initScale = c:CreateSlider("Start Scale", "Font Size", f, "TOPLEFT", "TOPLEFT", 170, -58, 0.1, 5, 0.01, DefaultConfig[cat].Scroll.initScale, "Config."..cat..".Scroll.initScale")
-    -- local midScale = c:CreateSlider("Mid Scale", "Font Size", f, "TOPLEFT", "TOPLEFT", 320, -58, 0.1, 5, 0.01, DefaultConfig[cat].Scroll.midScale, "Config."..cat..".Scroll.midScale")
-    -- local endScale = c:CreateSlider("End Scale", "Font Size", f, "TOPLEFT", "TOPLEFT", 470, -58, 0.1, 5, 0.01, DefaultConfig[cat].Scroll.endScale, "Config."..cat..".Scroll.endScale")
     distance:SetWidth(140)
-    -- inOutRatio:SetWidth(140)
-    -- initScale:SetWidth(140)
-    -- midScale:SetWidth(140)
-    -- endScale:SetWidth(140)
     enabledCheckbox:HookScript("OnShow", function(self)
         if self:GetChecked() then c:Show() else c:Hide() end
     end)
@@ -1849,11 +1813,9 @@ local function CreateCategoryPanel(self, cat, anchor, point1, point2, x, y)
     local enabledCheckbox = self:CreateCheckbox("Enabled", "Enables/Disables this event type", f, "TOPLEFT", "TOPLEFT", 143, 0, DefaultConfig[cat].enabled, "Config."..cat..".enabled")
     enabledCheckbox.label:SetWidth(80)
     enabledCheckbox:HookScript("OnShow", function(self)
-        -- print(self:GetName().." OnShow Checked="..tostring(self:GetChecked()).."\n"..f:GetName())
         if (self:GetChecked()) then f:Show() else f:Hide() end
     end)
     enabledCheckbox:HookScript("OnClick", function(self)
-        -- print(self:GetName().." OnClick Checked="..tostring(self:GetChecked()).."\n"..f:GetName())
         if (self:GetChecked()) then f:Show() else f:Hide() end
     end)
 
@@ -1927,15 +1889,10 @@ end
 
 local function CreateChildFrame(self, point1, point2, anchor, x, y, w, h)
     local f = CreateFrame("frame", self:NewFrameID(), self)
-    -- print(self:GetName()..":CreateChildFrame("..f:GetName()..")")
     self:AddFrame(f)
     f:SetPoint(point1, anchor, point2, x, y)
     f:SetSize(w,h)
     f:SetFrameLevel(1)
-    -- f.tex = f:CreateTexture(nil, "BACKGROUND")
-    -- f.tex:SetColorTexture(0, 0, 0)
-    -- f.tex:SetAlpha(0.2)
-    -- f.tex:SetAllPoints()
     f.widgets = {}
     f.widgetCount = 0
     f.CreateChildFrame = CreateChildFrame
@@ -1976,7 +1933,6 @@ local function CreateConfigPanel(name, parent)
     InterfaceOptions_AddCategory(p)
     p:SetAllPoints()
     p:Hide()
-    -- p:HookScript("OnShow", function(self) print("OnShow", self:GetName()) end)
     return p
 end
 
@@ -2068,23 +2024,16 @@ end)
 
 
 
--- ADD CHECKBOX FOR ATTACH MODE FALLBACK IF NAMEPLATE CANNOT BE AQUIRED
 
 
 
 local headerGeneralSettings = ConfigPanel:CreateHeader("General Settings", "GameFontNormalLarge", copyPresetBtn, "TOPLEFT", "BOTTOMLEFT", 0, -16)
 
--- local animSpeedSlider = ConfigPanel:CreateSlider("Animation Speed", "Animation speed multiplier", overlapCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, -32, 0.1, 5.0, 0.1, DefaultConfig.animSpeed, "Config.animSpeed")
--- local animDurationSlider = ConfigPanel:CreateSlider("Animation Duration", "Animation length in seconds", animSpeedSlider, "TOPLEFT", "TOPRIGHT", 16, 0, 0.1, 5.0, 0.1, DefaultConfig.animDuration, "Config.animDuration")
 local animDurationSlider = ConfigPanel:CreateSlider("Animation Duration", "Animation length in seconds", headerGeneralSettings, "TOPLEFT", "BOTTOMLEFT", 0, -16, 0.1, 5.0, 0.1, DefaultConfig.animDuration, "Config.animDuration")
 local textPosOptionsHeader = ConfigPanel:CreateHeader("Text Position Options", "GameFontNormalLarge", animDurationSlider, "TOPLEFT", "BOTTOMLEFT", 0, -32)
 local attachModeHeader = ConfigPanel:CreateHeader("Attach Text To", "GameFontHighlightSmall", textPosOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 0, -16)
 local attachModeDropDown = ConfigPanel:CreateDropDownMenu("Attach Mode", "", attachModeHeader, "LEFT", "LEFT", 88, -3, AttachModesMenu, "Config.attachMode")
--- attachModeDropDown:HookScript("OnShow", function(self)
---     local dropDownText = ""
---     for k,v in pairs(AttachModesMenu) do if (v.value == self.curValue) then dropDownText = v.text end end
---     getglobal(self:GetName().."Text"):SetText(dropDownText)
--- end)
+
 local fallbackCheckbox = ConfigPanel:CreateCheckbox("Attachment Fallback", "When a nameplate isnt available, the text will temporarily attach to the screen center instead", attachModeHeader, "TOPLEFT", "BOTTOMLEFT", 0, -16, DefaultConfig.preventOverlap, "Config.preventOverlap")
 local overlapCheckbox = ConfigPanel:CreateCheckbox("Prevent Text Overlap", "Prevents damage text frames from overlapping each other", fallbackCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, 0, DefaultConfig.attachModeFallback, "Config.attachModeFallback")
 local areaSliderX = ConfigPanel:CreateSlider("Text Area X Offset (screen only)", "Horizontal offset of animation area", overlapCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, -32, -700, 700, 1, DefaultConfig.areaX, "Config.areaX")
@@ -2161,7 +2110,6 @@ local CONFIG_LAYOUT = {
 }
 
 for _, cat in ipairs(CONFIG_LAYOUT) do
-    -- print("CONFIG_LAYOUT", cat.catname)
     local subpanel = ConfigPanel:CreateSubPanel(cat.catname)
     local parent = nil
     for _, subcat in ipairs(cat.subcatlist) do
