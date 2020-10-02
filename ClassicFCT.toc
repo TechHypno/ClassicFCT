@@ -1,0 +1,9 @@
+## Interface: 83700
+## Title: ClassicFCT
+## Notes: Classic Floating Combat Text
+## Author: techhypno.com, tehypno@ttv, TehHypno#2485
+## Version: 0.8
+## SavedVariables: ClassicFCTCustomPresets, ClassicFCTConfig, ClassicFCTVars
+
+config.lua
+main.lua
