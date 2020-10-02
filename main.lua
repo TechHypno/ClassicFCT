@@ -628,9 +628,9 @@ local CLEU_SPELL_EVENT = {
     SPELL_BUILDING_MISS = true
 }
 local CLEU_MISS_EVENT = {
-    SWING_MISS = true,
-    RANGE_MISS = true,
-    SPELL_MISS = true,
+    SWING_MISSED = true,
+    RANGE_MISSED = true,
+    SPELL_MISSED = true,
     SPELL_PERIODIC_MISS = true,
     SPELL_BUILDING_MISS = true,
 }
@@ -671,7 +671,6 @@ local MISS_EVENT_STRINGS = {
 function f:COMBAT_LOG_EVENT_UNFILTERED()
     if CFCT.enabled == false then return end
     local timestamp, cleuEvent, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, arg12, arg13, arg14, arg15, arg16, arg17, arg18, arg19, arg20, arg21, arg22, arg23, arg24, arg25 = CombatLogGetCurrentEventInfo()
-
     local playerEvent, petEvent = (playerGUID == sourceGUID), false
     if not playerEvent then petEvent = (bit.band(sourceFlags, COMBATLOG_OBJECT_TYPE_GUARDIAN) > 0 or bit.band(sourceFlags, COMBATLOG_OBJECT_TYPE_PET) > 0) and (bit.band(sourceFlags, COMBATLOG_OBJECT_AFFILIATION_MINE) > 0) end
     if not (playerEvent or petEvent) then return end
@@ -688,8 +687,8 @@ function f:COMBAT_LOG_EVENT_UNFILTERED()
         end
     elseif CLEU_MISS_EVENT[cleuEvent] then
         if CLEU_SWING_EVENT[cleuEvent] then
-            local misstype,_,amount = arg12,arg13,arg14
-            self:MissEvent(unit, nil, amount, misstype, petEvent, nil)
+            local spellid,spellname,school1,misstype,_,amount = arg12,arg13,arg14,arg15,arg16,arg17
+            self:MissEvent(unit, spellid, amount, misstype, petEvent, school1)
         else --its a SPELL event
             local spellid,spellname,school1,misstype,_,amount = arg12,arg13,arg14,arg15,arg16,arg17
             self:MissEvent(unit, spellid, amount, misstype, petEvent, school1)
@@ -729,7 +728,7 @@ function f:MissEvent(unit, spellid, amount, misstype, pet, school)
     if pet then cat = "pet"..cat end
     local icon = spellid and SpellIconText(spellid) or ""
     local typeColor = GetTypeColor(school)
-    DispatchText(unit, amount, typeColor, icon, cat)
+    DispatchText(unit, MISS_EVENT_STRINGS[misstype], typeColor, icon, cat)
 end
 function f:HealingEvent(unit, spellid, amount, crit, pet, school)
     local cat = "heal"
