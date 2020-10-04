@@ -19,7 +19,7 @@ local DefaultPresets = {
             -- Single Schools
             [SCHOOL_MASK_PHYSICAL]			        	= "ffff0000",
             [SCHOOL_MASK_HOLY]			            	= "ffffffb6",
-            [SCHOOL_MASK_FIRE]			            	= "FFFF4e2f",
+            [SCHOOL_MASK_FIRE]			            	= "ffff432c",
             [SCHOOL_MASK_NATURE]			        	= "ff3c9742",
             [SCHOOL_MASK_FROST]				            = "ff00abff",
             [SCHOOL_MASK_SHADOW]			        	= "ff9500b6",
@@ -480,7 +480,7 @@ local DefaultPresets = {
             -- Single Schools
             [SCHOOL_MASK_PHYSICAL]			        	= "ffff0000",
             [SCHOOL_MASK_HOLY]			            	= "ffffffb6",
-            [SCHOOL_MASK_FIRE]			            	= "FFFF4e2f",
+            [SCHOOL_MASK_FIRE]			            	= "ffff432c",
             [SCHOOL_MASK_NATURE]			        	= "ff3c9742",
             [SCHOOL_MASK_FROST]				            = "ff00abff",
             [SCHOOL_MASK_SHADOW]			        	= "ff9500b6",
@@ -1420,7 +1420,7 @@ local function CreateSlider(self, label, tooltip, parent, point1, point2, x, y, 
 end
 
 
-local LSM = LibStub and LibStub("LibSharedMedia-3.0")
+local LSM = LibStub("LibSharedMedia-3.0")
 local fontList = {[1]="Friz Quadrata TT"}
 local fontPaths = {["Friz Quadrata TT"]="Fonts\\FRIZQT__.TTF"}
 local fontObjects = {}

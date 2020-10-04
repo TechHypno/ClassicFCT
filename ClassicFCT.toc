@@ -4,6 +4,7 @@
 ## Author: TehHypno#2485, techhypno.com, tehypno@ttv
 ## Version: R0.81a-beta
 ## SavedVariables: ClassicFCTCustomPresets, ClassicFCTConfig, ClassicFCTVars
-
+## OptionalDeps: LibStub, LibSharedMedia-3.0
+Libs\libs.xml
 config.lua
 main.lua

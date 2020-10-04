@@ -2,5 +2,6 @@
 !*/
 !.gitignore
 !*.toc
+!*.xml
 !*.lua
 !*.md
