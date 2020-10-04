@@ -2,9 +2,9 @@
 ## Title: ClassicFCT
 ## Notes: Classic Floating Combat Text
 ## Author: TehHypno#2485, techhypno.com, tehypno@ttv
-## Version: R0.81b-beta
+## Version: R0.81c-beta
 ## SavedVariables: ClassicFCTCustomPresets, ClassicFCTConfig, ClassicFCTVars
-## OptionalDeps: LibStub, LibSharedMedia-3.0
+## OptionalDeps: LibStub, CallbackHandler-1.0, LibSharedMedia-3.0
 Libs\libs.xml
 config.lua
 main.lua
