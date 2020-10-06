@@ -5,8 +5,6 @@ Highly customizable "Floating Combat Text" addon with text anti-overlap behavior
 
 Use "/cfct" command to open the options interface.
  
-
-Use "/cfct" command to open the options interface.
 Currently there are 2 configuration presets built-in: "Classic" and "Mists of Pandaria".
 Users can create their own presets.
  
