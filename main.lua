@@ -1,9 +1,13 @@
 local addonName, CFCT = ...
 _G[addonName] = CFCT
 
+local tinsert, tremove, format, strlen, strsub, gsub, floor, sin, cos, asin, acos, random, select, pairs, ipairs, bitband = tinsert, tremove, format, strlen, strsub, gsub, floor, sin, cos, asin, acos, random, select, pairs, ipairs, bit.band
+local AbbreviateNumbers = AbbreviateNumbers
+
+
 CFCT.enabled = true
 CFCT.frame = CreateFrame("Frame", "CFCT.frame", UIParent)
-CFCT.animating = {}
+CFCT.animating = {target={}}
 CFCT.fontStringCache = {}
 
 
@@ -12,23 +16,28 @@ local f = CFCT.frame
 f:SetSize(1,1)
 f:SetPoint("CENTER", 0, 0)
 
-local anim = CFCT.animating
+local animAreas = CFCT.animating
 local fsc = CFCT.fontStringCache
 
 local function FormatThousandSeparator(v)
-    local s = string.format("%d", math.floor(v))
-    local pos = string.len(s) % 3
+    local s = format("%d", floor(v))
+    local pos = strlen(s) % 3
     if pos == 0 then pos = 3 end
-    return string.sub(s, 1, pos)..string.gsub(string.sub(s, pos+1), "(...)", ",%1")
+    return strsub(s, 1, pos)..gsub(strsub(s, pos+1), "(...)", ",%1")
 end
 
 local function InitFontString(self, unit, text, typeColor, icon, cat)
-    local catConfig = CFCT.Config[cat]
+    local cfctConfig = CFCT.Config
+    local catConfig = cfctConfig[cat]
     self:SetFont(catConfig.fontPath, catConfig.fontSize, catConfig.fontStyle)
     self:SetShadowOffset(catConfig.fontSize/14, catConfig.fontSize/14)
     self:SetDrawLayer("OVERLAY")
     self:SetPoint("BOTTOM", 0, 0)
-    if (catConfig.thousandSep) then text = FormatThousandSeparator(text) end
+    if (cfctConfig.abbreviateNumbers) then
+        text = AbbreviateNumbers(text)
+    elseif (cfctConfig.kiloSeparator) then
+        text = FormatThousandSeparator(text)
+    end
     if (catConfig.showIcons) then text = icon..text end
     self:SetText(text)
     if (catConfig.colorByType == true) and typeColor then
@@ -59,7 +68,7 @@ end
 local function ReleaseFontString(self)
     self.state = nil
     self:Hide()
-    table.insert(fsc, self)
+    tinsert(fsc, self)
 end
 
 local function CheckCollision(x1, y1, w1, h1, x2, y2, w2, h2)
@@ -94,229 +103,230 @@ end
 
 
 local GRID = {
-    [2] = {y={o=1, p=1}},
-    [3] = {x={o=1, p=1}},
-    [4] = {y={o=-1, p=1}},
-    [5] = {x={o=-1, p=1}},
-    [6] = {x={o=1, p=2}, y={o=1, p=3}},
-    [7] = {x={o=1, p=4}, y={o=-1, p=3}},
-    [8] = {x={o=-1, p=2}, y={o=1, p=5}},
-    [9] = {x={o=-1, p=4}, y={o=-1, p=5}},
-    [10] = {y={o=1, p=2}},
-    [11] = {x={o=1, p=3}},
-    [12] = {y={o=-1, p=4}},
-    [13] = {x={o=-1, p=5}},
-    [14] = {x={o=1, p=6}, y={o=1, p=11}},
-    [15] = {x={o=1, p=7}, y={o=-1, p=11}},
-    [16] = {x={o=-1, p=8}, y={o=1, p=13}},
-    [17] = {x={o=-1, p=9}, y={o=-1, p=13}},
-    [18] = {x={o=1, p=10}, y={o=1, p=6}},
-    [19] = {x={o=1, p=12}, y={o=-1, p=7}},
-    [20] = {x={o=-1, p=10}, y={o=1, p=8}},
-    [21] = {x={o=-1, p=12}, y={o=-1, p=9}},
-    [22] = {y={o=1, p=10}},
-    [23] = {x={o=1, p=11}},
-    [24] = {y={o=-1, p=12}},
-    [25] = {x={o=-1, p=13}},
-    [26] = {x={o=1, p=18}, y={o=1, p=14}},
-    [27] = {x={o=1, p=19}, y={o=-1, p=15}},
-    [28] = {x={o=-1, p=20}, y={o=1, p=16}},
-    [29] = {x={o=-1, p=21}, y={o=-1, p=17}},
-    [30] = {x={o=1, p=22}, y={o=1, p=18}},
-    [31] = {x={o=1, p=14}, y={o=1, p=23}},
-    [32] = {x={o=1, p=15}, y={o=-1, p=23}},
-    [33] = {x={o=1, p=24}, y={o=-1, p=19}},
-    [34] = {x={o=-1, p=24}, y={o=-1, p=21}},
-    [35] = {x={o=-1, p=16}, y={o=1, p=25}},
-    [36] = {x={o=-1, p=17}, y={o=-1, p=25}},
-    [37] = {x={o=-1, p=22}, y={o=1, p=20}},
-    [38] = {y={o=1, p=22}},
-    [39] = {x={o=1, p=23}},
-    [40] = {y={o=-1, p=24}},
-    [41] = {x={o=-1, p=25}},
-    [42] = {x={o=1, p=30}, y={o=1, p=26}},
-    [43] = {x={o=1, p=33}, y={o=-1, p=27}},
-    [44] = {x={o=-1, p=34}, y={o=-1, p=29}},
-    [45] = {x={o=-1, p=37}, y={o=1, p=28}},
-    [46] = {x={o=1, p=26}, y={o=1, p=31}},
-    [47] = {x={o=1, p=27}, y={o=-1, p=32}},
-    [48] = {x={o=-1, p=28}, y={o=1, p=35}},
-    [49] = {x={o=-1, p=29}, y={o=-1, p=36}},
-    [50] = {x={o=1, p=38}, y={o=1, p=30}},
-    [51] = {x={o=1, p=31}, y={o=1, p=39}},
-    [52] = {x={o=1, p=32}, y={o=-1, p=39}},
-    [53] = {x={o=1, p=40}, y={o=-1, p=33}},
-    [54] = {x={o=-1, p=40}, y={o=-1, p=34}},
-    [55] = {x={o=-1, p=35}, y={o=1, p=41}},
-    [56] = {x={o=-1, p=36}, y={o=-1, p=41}},
-    [57] = {x={o=-1, p=38}, y={o=1, p=37}},
-    [58] = {y={o=1, p=38}},
-    [59] = {x={o=1, p=39}},
-    [60] = {y={o=-1, p=40}},
-    [61] = {x={o=-1, p=41}},
-    [62] = {x={o=1, p=50}, y={o=1, p=42}},
-    [63] = {x={o=1, p=53}, y={o=-1, p=43}},
-    [64] = {x={o=-1, p=57}, y={o=1, p=45}},
-    [65] = {x={o=-1, p=54}, y={o=-1, p=44}},
-    [66] = {x={o=1, p=42}, y={o=1, p=46}},
-    [67] = {x={o=1, p=43}, y={o=-1, p=47}},
-    [68] = {x={o=-1, p=45}, y={o=1, p=48}},
-    [69] = {x={o=-1, p=44}, y={o=-1, p=49}},
-    [70] = {x={o=1, p=46}, y={o=1, p=51}},
-    [71] = {x={o=1, p=47}, y={o=-1, p=52}},
-    [72] = {x={o=-1, p=48}, y={o=1, p=55}},
-    [73] = {x={o=-1, p=49}, y={o=-1, p=56}},
-    [74] = {x={o=1, p=58}, y={o=1, p=50}},
-    [75] = {x={o=1, p=51}, y={o=1, p=59}},
-    [76] = {x={o=1, p=52}, y={o=-1, p=59}},
-    [77] = {x={o=1, p=60}, y={o=-1, p=53}},
-    [78] = {x={o=-1, p=60}, y={o=-1, p=54}},
-    [79] = {x={o=-1, p=55}, y={o=1, p=61}},
-    [80] = {x={o=-1, p=56}, y={o=-1, p=61}},
-    [81] = {x={o=-1, p=58}, y={o=1, p=57}},
-    [82] = {y={o=1, p=58}},
-    [83] = {x={o=1, p=59}},
-    [84] = {y={o=-1, p=60}},
-    [85] = {x={o=-1, p=61}},
-    [86] = {x={o=1, p=62}, y={o=1, p=66}},
-    [87] = {x={o=1, p=63}, y={o=-1, p=67}},
-    [88] = {x={o=-1, p=65}, y={o=-1, p=69}},
-    [89] = {x={o=-1, p=64}, y={o=1, p=68}},
-    [90] = {x={o=1, p=66}, y={o=1, p=70}},
-    [91] = {x={o=1, p=67}, y={o=-1, p=71}},
-    [92] = {x={o=-1, p=68}, y={o=1, p=72}},
-    [93] = {x={o=-1, p=69}, y={o=-1, p=73}},
-    [94] = {x={o=1, p=74}, y={o=1, p=62}},
-    [95] = {x={o=1, p=77}, y={o=-1, p=63}},
-    [96] = {x={o=-1, p=81}, y={o=1, p=64}},
-    [97] = {x={o=-1, p=78}, y={o=-1, p=65}},
-    [98] = {x={o=1, p=70}, y={o=1, p=75}},
-    [99] = {x={o=1, p=71}, y={o=-1, p=76}},
-    [100] = {x={o=-1, p=72}, y={o=1, p=79}},
-    [101] = {x={o=-1, p=73}, y={o=-1, p=80}},
-    [102] = {x={o=1, p=82}, y={o=1, p=74}},
-    [103] = {x={o=1, p=84}, y={o=-1, p=77}},
-    [104] = {x={o=-1, p=84}, y={o=-1, p=78}},
-    [105] = {x={o=-1, p=82}, y={o=1, p=81}},
-    [106] = {x={o=1, p=75}, y={o=1, p=83}},
-    [107] = {x={o=1, p=76}, y={o=-1, p=83}},
-    [108] = {x={o=-1, p=79}, y={o=1, p=85}},
-    [109] = {x={o=-1, p=80}, y={o=-1, p=85}},
-    [110] = {y={o=1, p=82}},
-    [111] = {x={o=1, p=83}},
-    [112] = {y={o=-1, p=84}},
-    [113] = {x={o=-1, p=85}},
-    [114] = {x={o=1, p=86}, y={o=1, p=90}},
-    [115] = {x={o=1, p=87}, y={o=-1, p=91}},
-    [116] = {x={o=-1, p=89}, y={o=1, p=92}},
-    [117] = {x={o=-1, p=88}, y={o=-1, p=93}},
-    [118] = {x={o=1, p=94}, y={o=1, p=86}},
-    [119] = {x={o=1, p=95}, y={o=-1, p=87}},
-    [120] = {x={o=-1, p=96}, y={o=1, p=89}},
-    [121] = {x={o=-1, p=97}, y={o=-1, p=88}},
-    [122] = {x={o=1, p=102}, y={o=1, p=94}},
-    [123] = {x={o=1, p=103}, y={o=-1, p=95}},
-    [124] = {x={o=-1, p=105}, y={o=1, p=96}},
-    [125] = {x={o=-1, p=104}, y={o=-1, p=97}},
-    [126] = {x={o=1, p=90}, y={o=1, p=98}},
-    [127] = {x={o=1, p=91}, y={o=-1, p=99}},
-    [128] = {x={o=-1, p=92}, y={o=1, p=100}},
-    [129] = {x={o=-1, p=93}, y={o=-1, p=101}},
-    [130] = {x={o=1, p=110}, y={o=1, p=102}},
-    [131] = {x={o=1, p=112}, y={o=-1, p=103}},
-    [132] = {x={o=-1, p=110}, y={o=1, p=105}},
-    [133] = {x={o=-1, p=112}, y={o=-1, p=104}},
-    [134] = {x={o=1, p=98}, y={o=1, p=106}},
-    [135] = {x={o=1, p=99}, y={o=-1, p=107}},
-    [136] = {x={o=-1, p=100}, y={o=1, p=108}},
-    [137] = {x={o=-1, p=101}, y={o=-1, p=109}},
-    [138] = {x={o=1, p=106}, y={o=1, p=111}},
-    [139] = {x={o=1, p=107}, y={o=-1, p=111}},
-    [140] = {x={o=-1, p=108}, y={o=1, p=113}},
-    [141] = {x={o=-1, p=109}, y={o=-1, p=113}},
-    [142] = {x={o=1, p=118}, y={o=1, p=114}},
-    [143] = {x={o=1, p=119}, y={o=-1, p=115}},
-    [144] = {x={o=-1, p=120}, y={o=1, p=116}},
-    [145] = {x={o=-1, p=121}, y={o=-1, p=117}},
-    [146] = {x={o=1, p=122}, y={o=1, p=118}},
-    [147] = {x={o=1, p=123}, y={o=-1, p=119}},
-    [148] = {x={o=-1, p=124}, y={o=1, p=120}},
-    [149] = {x={o=-1, p=125}, y={o=-1, p=121}},
-    [150] = {x={o=1, p=114}, y={o=1, p=126}},
-    [151] = {x={o=1, p=115}, y={o=-1, p=127}},
-    [152] = {x={o=-1, p=116}, y={o=1, p=128}},
-    [153] = {x={o=-1, p=117}, y={o=-1, p=129}},
-    [154] = {x={o=1, p=126}, y={o=1, p=134}},
-    [155] = {x={o=1, p=127}, y={o=-1, p=135}},
-    [156] = {x={o=-1, p=128}, y={o=1, p=136}},
-    [157] = {x={o=-1, p=129}, y={o=-1, p=137}},
-    [158] = {x={o=1, p=130}, y={o=1, p=122}},
-    [159] = {x={o=1, p=131}, y={o=-1, p=123}},
-    [160] = {x={o=-1, p=132}, y={o=1, p=124}},
-    [161] = {x={o=-1, p=133}, y={o=-1, p=125}},
-    [162] = {x={o=1, p=134}, y={o=1, p=138}},
-    [163] = {x={o=1, p=135}, y={o=-1, p=139}},
-    [164] = {x={o=-1, p=136}, y={o=1, p=140}},
-    [165] = {x={o=-1, p=137}, y={o=-1, p=141}},
-    [166] = {x={o=1, p=142}, y={o=1, p=150}},
-    [167] = {x={o=1, p=143}, y={o=-1, p=151}},
-    [168] = {x={o=-1, p=144}, y={o=1, p=152}},
-    [169] = {x={o=-1, p=145}, y={o=-1, p=153}},
-    [170] = {x={o=1, p=146}, y={o=1, p=142}},
-    [171] = {x={o=1, p=147}, y={o=-1, p=143}},
-    [172] = {x={o=-1, p=148}, y={o=1, p=144}},
-    [173] = {x={o=-1, p=149}, y={o=-1, p=145}},
-    [174] = {x={o=1, p=150}, y={o=1, p=154}},
-    [175] = {x={o=1, p=151}, y={o=-1, p=155}},
-    [176] = {x={o=-1, p=152}, y={o=1, p=156}},
-    [177] = {x={o=-1, p=153}, y={o=-1, p=157}},
-    [178] = {x={o=1, p=158}, y={o=1, p=146}},
-    [179] = {x={o=1, p=159}, y={o=-1, p=147}},
-    [180] = {x={o=-1, p=160}, y={o=1, p=148}},
-    [181] = {x={o=-1, p=161}, y={o=-1, p=149}},
-    [182] = {x={o=1, p=154}, y={o=1, p=162}},
-    [183] = {x={o=1, p=155}, y={o=-1, p=163}},
-    [184] = {x={o=-1, p=156}, y={o=1, p=164}},
-    [185] = {x={o=-1, p=157}, y={o=-1, p=165}},
-    [186] = {x={o=1, p=170}, y={o=1, p=166}},
-    [187] = {x={o=1, p=171}, y={o=-1, p=167}},
-    [188] = {x={o=-1, p=172}, y={o=1, p=168}},
-    [189] = {x={o=-1, p=173}, y={o=-1, p=169}},
-    [190] = {x={o=1, p=178}, y={o=1, p=170}},
-    [191] = {x={o=1, p=179}, y={o=-1, p=171}},
-    [192] = {x={o=-1, p=180}, y={o=1, p=172}},
-    [193] = {x={o=-1, p=181}, y={o=-1, p=173}},
-    [194] = {x={o=1, p=166}, y={o=1, p=174}},
-    [195] = {x={o=1, p=167}, y={o=-1, p=175}},
-    [196] = {x={o=-1, p=168}, y={o=1, p=176}},
-    [197] = {x={o=-1, p=169}, y={o=-1, p=177}},
-    [198] = {x={o=1, p=174}, y={o=1, p=182}},
-    [199] = {x={o=1, p=175}, y={o=-1, p=183}},
-    [200] = {x={o=-1, p=176}, y={o=1, p=184}},
-    [201] = {x={o=-1, p=177}, y={o=-1, p=185}},
-    [202] = {x={o=1, p=186}, y={o=1, p=194}},
-    [203] = {x={o=-1, p=188}, y={o=1, p=196}},
-    [204] = {x={o=1, p=187}, y={o=-1, p=195}},
-    [205] = {x={o=1, p=190}, y={o=1, p=186}},
-    [206] = {x={o=1, p=191}, y={o=-1, p=187}},
-    [207] = {x={o=-1, p=192}, y={o=1, p=188}},
-    [208] = {x={o=-1, p=193}, y={o=-1, p=189}},
-    [209] = {x={o=1, p=194}, y={o=1, p=198}},
-    [210] = {x={o=1, p=195}, y={o=-1, p=199}},
-    [211] = {x={o=-1, p=196}, y={o=1, p=200}},
-    [212] = {x={o=-1, p=197}, y={o=-1, p=201}},
-    [213] = {x={o=1, p=205}, y={o=1, p=202}},
-    [214] = {x={o=1, p=206}, y={o=-1, p=204}},
-    [215] = {x={o=-1, p=207}, y={o=1, p=203}},
-    [216] = {x={o=-1, p=208}, y={o=-1, p=204}},
-    [217] = {x={o=1, p=202}, y={o=1, p=209}},
-    [218] = {x={o=1, p=204}, y={o=-1, p=210}},
-    [219] = {x={o=-1, p=203}, y={o=1, p=211}},
-    [220] = {x={o=-1, p=204}, y={o=-1, p=212}},
-    [221] = {x={o=1, p=213}, y={o=1, p=217}},
-    [222] = {x={o=1, p=214}, y={o=-1, p=218}},
-    [223] = {x={o=-1, p=215}, y={o=1, p=219}},
-    [224] = {x={o=-1, p=216}, y={o=-1, p=220}}
+    false,
+    {y={o=1, p=1}},
+    {x={o=1, p=1}},
+    {y={o=-1, p=1}},
+    {x={o=-1, p=1}},
+    {x={o=1, p=2}, y={o=1, p=3}},
+    {x={o=1, p=4}, y={o=-1, p=3}},
+    {x={o=-1, p=2}, y={o=1, p=5}},
+    {x={o=-1, p=4}, y={o=-1, p=5}},
+    {y={o=1, p=2}},
+    {x={o=1, p=3}},
+    {y={o=-1, p=4}},
+    {x={o=-1, p=5}},
+    {x={o=1, p=6}, y={o=1, p=11}},
+    {x={o=1, p=7}, y={o=-1, p=11}},
+    {x={o=-1, p=8}, y={o=1, p=13}},
+    {x={o=-1, p=9}, y={o=-1, p=13}},
+    {x={o=1, p=10}, y={o=1, p=6}},
+    {x={o=1, p=12}, y={o=-1, p=7}},
+    {x={o=-1, p=10}, y={o=1, p=8}},
+    {x={o=-1, p=12}, y={o=-1, p=9}},
+    {y={o=1, p=10}},
+    {x={o=1, p=11}},
+    {y={o=-1, p=12}},
+    {x={o=-1, p=13}},
+    {x={o=1, p=18}, y={o=1, p=14}},
+    {x={o=1, p=19}, y={o=-1, p=15}},
+    {x={o=-1, p=20}, y={o=1, p=16}},
+    {x={o=-1, p=21}, y={o=-1, p=17}},
+    {x={o=1, p=22}, y={o=1, p=18}},
+    {x={o=1, p=14}, y={o=1, p=23}},
+    {x={o=1, p=15}, y={o=-1, p=23}},
+    {x={o=1, p=24}, y={o=-1, p=19}},
+    {x={o=-1, p=24}, y={o=-1, p=21}},
+    {x={o=-1, p=16}, y={o=1, p=25}},
+    {x={o=-1, p=17}, y={o=-1, p=25}},
+    {x={o=-1, p=22}, y={o=1, p=20}},
+    {y={o=1, p=22}},
+    {x={o=1, p=23}},
+    {y={o=-1, p=24}},
+    {x={o=-1, p=25}},
+    {x={o=1, p=30}, y={o=1, p=26}},
+    {x={o=1, p=33}, y={o=-1, p=27}},
+    {x={o=-1, p=34}, y={o=-1, p=29}},
+    {x={o=-1, p=37}, y={o=1, p=28}},
+    {x={o=1, p=26}, y={o=1, p=31}},
+    {x={o=1, p=27}, y={o=-1, p=32}},
+    {x={o=-1, p=28}, y={o=1, p=35}},
+    {x={o=-1, p=29}, y={o=-1, p=36}},
+    {x={o=1, p=38}, y={o=1, p=30}},
+    {x={o=1, p=31}, y={o=1, p=39}},
+    {x={o=1, p=32}, y={o=-1, p=39}},
+    {x={o=1, p=40}, y={o=-1, p=33}},
+    {x={o=-1, p=40}, y={o=-1, p=34}},
+    {x={o=-1, p=35}, y={o=1, p=41}},
+    {x={o=-1, p=36}, y={o=-1, p=41}},
+    {x={o=-1, p=38}, y={o=1, p=37}},
+    {y={o=1, p=38}},
+    {x={o=1, p=39}},
+    {y={o=-1, p=40}},
+    {x={o=-1, p=41}},
+    {x={o=1, p=50}, y={o=1, p=42}},
+    {x={o=1, p=53}, y={o=-1, p=43}},
+    {x={o=-1, p=57}, y={o=1, p=45}},
+    {x={o=-1, p=54}, y={o=-1, p=44}},
+    {x={o=1, p=42}, y={o=1, p=46}},
+    {x={o=1, p=43}, y={o=-1, p=47}},
+    {x={o=-1, p=45}, y={o=1, p=48}},
+    {x={o=-1, p=44}, y={o=-1, p=49}},
+    {x={o=1, p=46}, y={o=1, p=51}},
+    {x={o=1, p=47}, y={o=-1, p=52}},
+    {x={o=-1, p=48}, y={o=1, p=55}},
+    {x={o=-1, p=49}, y={o=-1, p=56}},
+    {x={o=1, p=58}, y={o=1, p=50}},
+    {x={o=1, p=51}, y={o=1, p=59}},
+    {x={o=1, p=52}, y={o=-1, p=59}},
+    {x={o=1, p=60}, y={o=-1, p=53}},
+    {x={o=-1, p=60}, y={o=-1, p=54}},
+    {x={o=-1, p=55}, y={o=1, p=61}},
+    {x={o=-1, p=56}, y={o=-1, p=61}},
+    {x={o=-1, p=58}, y={o=1, p=57}},
+    {y={o=1, p=58}},
+    {x={o=1, p=59}},
+    {y={o=-1, p=60}},
+    {x={o=-1, p=61}},
+    {x={o=1, p=62}, y={o=1, p=66}},
+    {x={o=1, p=63}, y={o=-1, p=67}},
+    {x={o=-1, p=65}, y={o=-1, p=69}},
+    {x={o=-1, p=64}, y={o=1, p=68}},
+    {x={o=1, p=66}, y={o=1, p=70}},
+    {x={o=1, p=67}, y={o=-1, p=71}},
+    {x={o=-1, p=68}, y={o=1, p=72}},
+    {x={o=-1, p=69}, y={o=-1, p=73}},
+    {x={o=1, p=74}, y={o=1, p=62}},
+    {x={o=1, p=77}, y={o=-1, p=63}},
+    {x={o=-1, p=81}, y={o=1, p=64}},
+    {x={o=-1, p=78}, y={o=-1, p=65}},
+    {x={o=1, p=70}, y={o=1, p=75}},
+    {x={o=1, p=71}, y={o=-1, p=76}},
+    {x={o=-1, p=72}, y={o=1, p=79}},
+    {x={o=-1, p=73}, y={o=-1, p=80}},
+    {x={o=1, p=82}, y={o=1, p=74}},
+    {x={o=1, p=84}, y={o=-1, p=77}},
+    {x={o=-1, p=84}, y={o=-1, p=78}},
+    {x={o=-1, p=82}, y={o=1, p=81}},
+    {x={o=1, p=75}, y={o=1, p=83}},
+    {x={o=1, p=76}, y={o=-1, p=83}},
+    {x={o=-1, p=79}, y={o=1, p=85}},
+    {x={o=-1, p=80}, y={o=-1, p=85}},
+    {y={o=1, p=82}},
+    {x={o=1, p=83}},
+    {y={o=-1, p=84}},
+    {x={o=-1, p=85}},
+    {x={o=1, p=86}, y={o=1, p=90}},
+    {x={o=1, p=87}, y={o=-1, p=91}},
+    {x={o=-1, p=89}, y={o=1, p=92}},
+    {x={o=-1, p=88}, y={o=-1, p=93}},
+    {x={o=1, p=94}, y={o=1, p=86}},
+    {x={o=1, p=95}, y={o=-1, p=87}},
+    {x={o=-1, p=96}, y={o=1, p=89}},
+    {x={o=-1, p=97}, y={o=-1, p=88}},
+    {x={o=1, p=102}, y={o=1, p=94}},
+    {x={o=1, p=103}, y={o=-1, p=95}},
+    {x={o=-1, p=105}, y={o=1, p=96}},
+    {x={o=-1, p=104}, y={o=-1, p=97}},
+    {x={o=1, p=90}, y={o=1, p=98}},
+    {x={o=1, p=91}, y={o=-1, p=99}},
+    {x={o=-1, p=92}, y={o=1, p=100}},
+    {x={o=-1, p=93}, y={o=-1, p=101}},
+    {x={o=1, p=110}, y={o=1, p=102}},
+    {x={o=1, p=112}, y={o=-1, p=103}},
+    {x={o=-1, p=110}, y={o=1, p=105}},
+    {x={o=-1, p=112}, y={o=-1, p=104}},
+    {x={o=1, p=98}, y={o=1, p=106}},
+    {x={o=1, p=99}, y={o=-1, p=107}},
+    {x={o=-1, p=100}, y={o=1, p=108}},
+    {x={o=-1, p=101}, y={o=-1, p=109}},
+    {x={o=1, p=106}, y={o=1, p=111}},
+    {x={o=1, p=107}, y={o=-1, p=111}},
+    {x={o=-1, p=108}, y={o=1, p=113}},
+    {x={o=-1, p=109}, y={o=-1, p=113}},
+    {x={o=1, p=118}, y={o=1, p=114}},
+    {x={o=1, p=119}, y={o=-1, p=115}},
+    {x={o=-1, p=120}, y={o=1, p=116}},
+    {x={o=-1, p=121}, y={o=-1, p=117}},
+    {x={o=1, p=122}, y={o=1, p=118}},
+    {x={o=1, p=123}, y={o=-1, p=119}},
+    {x={o=-1, p=124}, y={o=1, p=120}},
+    {x={o=-1, p=125}, y={o=-1, p=121}},
+    {x={o=1, p=114}, y={o=1, p=126}},
+    {x={o=1, p=115}, y={o=-1, p=127}},
+    {x={o=-1, p=116}, y={o=1, p=128}},
+    {x={o=-1, p=117}, y={o=-1, p=129}},
+    {x={o=1, p=126}, y={o=1, p=134}},
+    {x={o=1, p=127}, y={o=-1, p=135}},
+    {x={o=-1, p=128}, y={o=1, p=136}},
+    {x={o=-1, p=129}, y={o=-1, p=137}},
+    {x={o=1, p=130}, y={o=1, p=122}},
+    {x={o=1, p=131}, y={o=-1, p=123}},
+    {x={o=-1, p=132}, y={o=1, p=124}},
+    {x={o=-1, p=133}, y={o=-1, p=125}},
+    {x={o=1, p=134}, y={o=1, p=138}},
+    {x={o=1, p=135}, y={o=-1, p=139}},
+    {x={o=-1, p=136}, y={o=1, p=140}},
+    {x={o=-1, p=137}, y={o=-1, p=141}},
+    {x={o=1, p=142}, y={o=1, p=150}},
+    {x={o=1, p=143}, y={o=-1, p=151}},
+    {x={o=-1, p=144}, y={o=1, p=152}},
+    {x={o=-1, p=145}, y={o=-1, p=153}},
+    {x={o=1, p=146}, y={o=1, p=142}},
+    {x={o=1, p=147}, y={o=-1, p=143}},
+    {x={o=-1, p=148}, y={o=1, p=144}},
+    {x={o=-1, p=149}, y={o=-1, p=145}},
+    {x={o=1, p=150}, y={o=1, p=154}},
+    {x={o=1, p=151}, y={o=-1, p=155}},
+    {x={o=-1, p=152}, y={o=1, p=156}},
+    {x={o=-1, p=153}, y={o=-1, p=157}},
+    {x={o=1, p=158}, y={o=1, p=146}},
+    {x={o=1, p=159}, y={o=-1, p=147}},
+    {x={o=-1, p=160}, y={o=1, p=148}},
+    {x={o=-1, p=161}, y={o=-1, p=149}},
+    {x={o=1, p=154}, y={o=1, p=162}},
+    {x={o=1, p=155}, y={o=-1, p=163}},
+    {x={o=-1, p=156}, y={o=1, p=164}},
+    {x={o=-1, p=157}, y={o=-1, p=165}},
+    {x={o=1, p=170}, y={o=1, p=166}},
+    {x={o=1, p=171}, y={o=-1, p=167}},
+    {x={o=-1, p=172}, y={o=1, p=168}},
+    {x={o=-1, p=173}, y={o=-1, p=169}},
+    {x={o=1, p=178}, y={o=1, p=170}},
+    {x={o=1, p=179}, y={o=-1, p=171}},
+    {x={o=-1, p=180}, y={o=1, p=172}},
+    {x={o=-1, p=181}, y={o=-1, p=173}},
+    {x={o=1, p=166}, y={o=1, p=174}},
+    {x={o=1, p=167}, y={o=-1, p=175}},
+    {x={o=-1, p=168}, y={o=1, p=176}},
+    {x={o=-1, p=169}, y={o=-1, p=177}},
+    {x={o=1, p=174}, y={o=1, p=182}},
+    {x={o=1, p=175}, y={o=-1, p=183}},
+    {x={o=-1, p=176}, y={o=1, p=184}},
+    {x={o=-1, p=177}, y={o=-1, p=185}},
+    {x={o=1, p=186}, y={o=1, p=194}},
+    {x={o=-1, p=188}, y={o=1, p=196}},
+    {x={o=1, p=187}, y={o=-1, p=195}},
+    {x={o=1, p=190}, y={o=1, p=186}},
+    {x={o=1, p=191}, y={o=-1, p=187}},
+    {x={o=-1, p=192}, y={o=1, p=188}},
+    {x={o=-1, p=193}, y={o=-1, p=189}},
+    {x={o=1, p=194}, y={o=1, p=198}},
+    {x={o=1, p=195}, y={o=-1, p=199}},
+    {x={o=-1, p=196}, y={o=1, p=200}},
+    {x={o=-1, p=197}, y={o=-1, p=201}},
+    {x={o=1, p=205}, y={o=1, p=202}},
+    {x={o=1, p=206}, y={o=-1, p=204}},
+    {x={o=-1, p=207}, y={o=1, p=203}},
+    {x={o=-1, p=208}, y={o=-1, p=204}},
+    {x={o=1, p=202}, y={o=1, p=209}},
+    {x={o=1, p=204}, y={o=-1, p=210}},
+    {x={o=-1, p=203}, y={o=1, p=211}},
+    {x={o=-1, p=204}, y={o=-1, p=212}},
+    {x={o=1, p=213}, y={o=1, p=217}},
+    {x={o=1, p=214}, y={o=-1, p=218}},
+    {x={o=-1, p=215}, y={o=1, p=219}},
+    {x={o=-1, p=216}, y={o=-1, p=220}},
 }
 
 
@@ -327,11 +337,17 @@ local function SortFrames(frames)
     for k, e in ipairs(frames) do
         local gridX = GRID[k] and (GRID[k].x and frames[GRID[k].x.p].state.gridX + GRID[k].x.o * (gapX + frames[GRID[k].x.p].state.width + 0.5*(e.state.width - frames[GRID[k].x.p].state.width))) or 0
         local gridY = GRID[k] and (GRID[k].y and frames[GRID[k].y.p].state.gridY + GRID[k].y.o * (gapY + (GRID[k].y.o < 0 and e.state.height or frames[GRID[k].y.p].state.height))) or 0
-        if not GRID[k] and k > 1 then print(k) end
-        e.state.posX = e.state.posX + gridX - (e.state.gridX or 0)
-        e.state.posY = e.state.posY + gridY - (e.state.gridY or 0)
-        e.state.gridX = gridX
-        e.state.gridY = gridY
+        if GRID[k] or k == 1 then
+            e.state.posX = e.state.posX + gridX - (e.state.gridX or 0)
+            e.state.posY = e.state.posY + gridY - (e.state.gridY or 0)
+            e.state.gridX = gridX
+            e.state.gridY = gridY
+        else
+            e.state.posX = e.state.posX + gridX - (e.state.gridX or 0)
+            e.state.posY = e.state.posY + gridY - (e.state.gridY or 0)
+            e.state.gridX = 9999
+            e.state.gridY = 9999
+        end
     end
 end
 
@@ -391,8 +407,8 @@ local ANIMATIONS = {
 
         if dir:find("RANDOM") then
             if (self.state.randomX == nil) and (self.state.randomY == nil) then
-                local a = math.random(1,628) / 100
-                local rx, ry = math.cos(a), math.sin(a)
+                local a = random(1,628) / 100
+                local rx, ry = cos(a), sin(a)
                 self.state.randomX, self.state.randomY =  rx * dist, ry * dist
             end
             scrollX = AnimateLinearAbsolute(self.initialTime, duration, 0, self.state.randomX)
@@ -457,7 +473,7 @@ local function UpdateFontString(self, index, elapsed)
 end
 
 local function GrabFontString()
-    if (#fsc > 0) then return table.remove(fsc) end
+    if (#fsc > 0) then return tremove(fsc) end
     local fontString = f:CreateFontString()
 
     fontString.Init = InitFontString
@@ -468,52 +484,101 @@ local function GrabFontString()
 end
 
 
-CFCT.TestFrames = {}
-function CFCT:Test(n)
-    for i = 1, n do
-        local fontString = GrabFontString()
-        fontString:Init("|T"..select(3,GetSpellInfo(1))..":0|t"..i.."1234", "white")
-        fontString.state.cat = "white"
-        fontString.dragFrame = CreateFrame("frame", "CFCT.TestFrames["..#CFCT.TestFrames+i.."]", f)
-        fontString.dragFrame:SetFrameStrata("DIALOG")
-        fontString.dragFrame:SetSize(fontString.state.width, fontString.state.height)
-        fontString.dragFrame:SetPoint("CENTER", f, "CENTER", 0, 0)
-        fontString.dragFrame:SetBackdrop({bgFile="Interface/CharacterFrame/UI-Party-Background", tile=true, tileSize=32, insets={left=0, right=0, top=0, bottom=0}})
-        fontString.dragFrame:SetAlpha(0.3)
-        fontString.dragFrame:SetMovable(true)
-        fontString.dragFrame:SetScript("OnMouseDown", function(self, btn)
-            self:StartMoving()
-            self:SetScript("OnUpdate", function(self, elapsed)
-                local x, y = self:GetCenter()
-                local fx, fy = f:GetCenter()
-                fontString.state.posX = x - fx
-                fontString.state.posY = y - fy
-                fontString:SetPoint("CENTER", f, "CENTER", fontString.state.posX, fontString.state.posY)
-                PushFrames(fontString, CFCT.TestFrames)
-                for _, e in pairs(CFCT.TestFrames) do
-                    if (e ~= fontString) then
-                        e:SetPoint("CENTER", f, "CENTER", e.state.posX, e.state.posY)
-                        e.dragFrame:SetPoint("CENTER", f, "CENTER", e.state.posX, e.state.posY)
-                    end
-                end
-            end)
-        end)
-        fontString.dragFrame:SetScript("OnMouseUp", function(self, btn)
-            self:StopMovingOrSizing()
-            self:SetScript("OnUpdate", nil)
-        end)
-        fontString.dragFrame:EnableMouse(true)
-        table.insert(CFCT.TestFrames, fontString)
-    end
-end
+
 
 local function DispatchText(unit, text, typeColor, icon, cat)
     local fontString = GrabFontString()
     fontString:Init(unit, text, typeColor, icon, cat)
-    table.insert(anim, 1, fontString)
+    unit = (CFCT.Config.attachMode == "en") and unit or "target"
+    local animArea = animAreas[unit]
+    if animArea then
+        tinsert(animAreas[unit], 1, fontString)
+    end
 end
 
-
+-- CFCT.TestFrames = {}
+CFCT._testMode = false
+local testModeTimer = 0
+function CFCT:Test(n)
+    -- for i = 1, n do
+    --     local fontString = GrabFontString()
+    --     fontString:Init("|T"..select(3,GetSpellInfo(1))..":0|t"..i.."1234", "white")
+    --     fontString.state.cat = "white"
+    --     fontString.dragFrame = CreateFrame("frame", "CFCT.TestFrames["..#CFCT.TestFrames+i.."]", f)
+    --     fontString.dragFrame:SetFrameStrata("DIALOG")
+    --     fontString.dragFrame:SetSize(fontString.state.width, fontString.state.height)
+    --     fontString.dragFrame:SetPoint("CENTER", f, "CENTER", 0, 0)
+    --     fontString.dragFrame:SetBackdrop({bgFile="Interface/CharacterFrame/UI-Party-Background", tile=true, tileSize=32, insets={left=0, right=0, top=0, bottom=0}})
+    --     fontString.dragFrame:SetAlpha(0.3)
+    --     fontString.dragFrame:SetMovable(true)
+    --     fontString.dragFrame:SetScript("OnMouseDown", function(self, btn)
+    --         self:StartMoving()
+    --         self:SetScript("OnUpdate", function(self, elapsed)
+    --             local x, y = self:GetCenter()
+    --             local fx, fy = f:GetCenter()
+    --             fontString.state.posX = x - fx
+    --             fontString.state.posY = y - fy
+    --             fontString:SetPoint("CENTER", f, "CENTER", fontString.state.posX, fontString.state.posY)
+    --             PushFrames(fontString, CFCT.TestFrames)
+    --             for _, e in pairs(CFCT.TestFrames) do
+    --                 if (e ~= fontString) then
+    --                     e:SetPoint("CENTER", f, "CENTER", e.state.posX, e.state.posY)
+    --                     e.dragFrame:SetPoint("CENTER", f, "CENTER", e.state.posX, e.state.posY)
+    --                 end
+    --             end
+    --         end)
+    --     end)
+    --     fontString.dragFrame:SetScript("OnMouseUp", function(self, btn)
+    --         self:StopMovingOrSizing()
+    --         self:SetScript("OnUpdate", nil)
+    --     end)
+    --     fontString.dragFrame:EnableMouse(true)
+    --     tinsert(CFCT.TestFrames, fontString)
+    -- end
+    -- local cats = {
+    --     "auto",
+    --     "automiss",
+    --     "autocrit",
+    --     "petauto",
+    --     "petautomiss",
+    --     "petautocrit",
+    --     "spell",
+    --     "spellmiss",
+    --     "spellcrit",
+    --     "petspell",
+    --     "petspellmiss",
+    --     "petspellcrit",
+    --     "heal",
+    --     "healmiss",
+    --     "healcrit",
+    --     "petheal",
+    --     "pethealmiss",
+    --     "pethealcrit"
+    -- }
+    local cats = {
+        "auto",
+        "spell",
+        "heal"
+    }
+    local nameplates = C_NamePlate.GetNamePlates()
+    local numplates = #nameplates
+    local it = (numplates > 0) and (n*numplates) or n
+    for i = 1, it do
+        local icon = ""
+        while (icon == "") do
+            local iconid = select(3,GetSpellInfo(random(1,32767)))
+            if iconid then icon = "|T"..iconid..":0|t" end
+        end
+        local color = CFCT.Config.colorTable[random(1,128)] or CFCT.Config.colorTable[1]
+        local pet = random(1,3) == 1 and "pet" or ""
+        local modifier = random(1,3)
+        modifier = ((modifier == 1) and "") or ((modifier == 2) and "crit" or "miss")
+        local cat = pet..cats[random(1,#cats)]..modifier
+        local amount = cat:find('crit') and 2674 or 1337
+        local unit = (numplates > 0) and nameplates[random(1,numplates)].UnitFrame.unit or "target"
+        DispatchText(unit, amount, color, icon, cat)
+    end
+end
 
 
 
@@ -547,20 +612,26 @@ for e,_ in pairs(events) do f:RegisterEvent(e) end
 f:SetScript("OnEvent", function(self, event, ...) self[event](self, ...) end)
 f:SetScript("OnUpdate", function(self, elapsed)
     now = GetTime()
-    for k, fontString in ipairs(anim) do
-        if fontString:Update(k, elapsed) then
-            fontString:Release()
-            table.remove(anim, k)
-        else
-            fontString.state.checkOverlap = true
+    if CFCT._testMode and (now > testModeTimer) then
+        CFCT:Test(2)
+        testModeTimer = now + CFCT.Config.animDuration / 2
+    end
+    for _, animArea in pairs(animAreas) do
+        for k, fontString in ipairs(animArea) do
+            if fontString:Update(k, elapsed) then
+                fontString:Release()
+                tremove(animArea, k)
+            else
+                fontString.state.checkOverlap = true
+            end
         end
-    end
-    if CFCT.Config.preventOverlap then
-        SortFrames(anim)
-    end
-    if (now > cvarTimer) then
-        checkCvars()
-        cvarTimer = now + CVAR_CHECK_INTERVAL
+        if CFCT.Config.preventOverlap then
+            SortFrames(animArea)
+        end
+        if (now > cvarTimer) then
+            checkCvars()
+            cvarTimer = now + CVAR_CHECK_INTERVAL
+        end
     end
 end)
 f:Show()
@@ -584,6 +655,7 @@ end
 local nameplates = {}
 function f:NAME_PLATE_UNIT_ADDED(unit)
     local guid = UnitGUID(unit)
+    animAreas[unit] = animAreas[unit] or {}
     nameplates[unit] = guid
     nameplates[guid] = unit 
 end
@@ -672,7 +744,7 @@ function f:COMBAT_LOG_EVENT_UNFILTERED()
     if CFCT.enabled == false then return end
     local timestamp, cleuEvent, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, arg12, arg13, arg14, arg15, arg16, arg17, arg18, arg19, arg20, arg21, arg22, arg23, arg24, arg25 = CombatLogGetCurrentEventInfo()
     local playerEvent, petEvent = (playerGUID == sourceGUID), false
-    if not playerEvent then petEvent = (bit.band(sourceFlags, COMBATLOG_OBJECT_TYPE_GUARDIAN) > 0 or bit.band(sourceFlags, COMBATLOG_OBJECT_TYPE_PET) > 0) and (bit.band(sourceFlags, COMBATLOG_OBJECT_AFFILIATION_MINE) > 0) end
+    if not playerEvent then petEvent = (bitband(sourceFlags, COMBATLOG_OBJECT_TYPE_GUARDIAN) > 0 or bitband(sourceFlags, COMBATLOG_OBJECT_TYPE_PET) > 0) and (bitband(sourceFlags, COMBATLOG_OBJECT_AFFILIATION_MINE) > 0) end
     if not (playerEvent or petEvent) then return end
     if (destGUID == playerGUID) then return end
     local unit = nameplates[destGUID]

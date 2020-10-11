@@ -1,4 +1,5 @@
 local addonName, CFCT = ...
+local tinsert, tremove, format, strlen, strsub, gsub, floor, sin, cos, asin, acos, random, select, pairs, ipairs, bitband = tinsert, tremove, format, strlen, strsub, gsub, floor, sin, cos, asin, acos, random, select, pairs, ipairs, bit.band
 
 -- 9.0 PTR Fix
 local CreateFrame = function(type, name, parent, template)
@@ -15,6 +16,8 @@ local DefaultPresets = {
         preventOverlap = true,
         attachMode = "tn",
         attachModeFallback = true,
+        abbreviateNumbers = false,
+        kiloSeparator = false,
         colorTable = {
             -- Single Schools
             [SCHOOL_MASK_PHYSICAL]			        	= "ffff0000",
@@ -476,6 +479,8 @@ local DefaultPresets = {
         preventOverlap = true,
         attachMode = "tn",
         attachModeFallback = true,
+        abbreviateNumbers = false,
+        kiloSeparator = false,
         colorTable = {
             -- Single Schools
             [SCHOOL_MASK_PHYSICAL]			        	= "ffff0000",
@@ -1026,6 +1031,7 @@ function CFCT:DumpLog(n)
     return table.concat(self._log, "\n", c - n, n)
 end
 
+
 --Input Popup Box
 StaticPopupDialogs["CLASSICFCT_POPUPDIALOG"] = {
     text = "POPUPDIALOG_TITLE",
@@ -1179,7 +1185,7 @@ SlashCmdList['CLASSICFCT'] = function(msg)
 end
 
 function CFCT.Color2RGBA(color)
-    return tonumber("0x"..string.sub(color, 3, 4))/255, tonumber("0x"..string.sub(color, 5, 6))/255, tonumber("0x"..string.sub(color, 7, 8))/255, tonumber("0x"..string.sub(color, 1, 2))/255
+    return tonumber("0x"..strsub(color, 3, 4))/255, tonumber("0x"..strsub(color, 5, 6))/255, tonumber("0x"..strsub(color, 7, 8))/255, tonumber("0x"..strsub(color, 1, 2))/255
 end
 
 function CFCT.RGBA2Color(r, g, b, a)
@@ -2032,15 +2038,20 @@ end)
 
 local headerGeneralSettings = ConfigPanel:CreateHeader("General Settings", "GameFontNormalLarge", copyPresetBtn, "TOPLEFT", "BOTTOMLEFT", 0, -16)
 
-local animDurationSlider = ConfigPanel:CreateSlider("Animation Duration", "Animation length in seconds", headerGeneralSettings, "TOPLEFT", "BOTTOMLEFT", 0, -16, 0.1, 5.0, 0.1, DefaultConfig.animDuration, "Config.animDuration")
+local animDurationSlider = ConfigPanel:CreateSlider("Animation Duration", "Animation length in seconds", headerGeneralSettings, "TOPLEFT", "BOTTOMLEFT", 0, -24, 0.1, 5.0, 0.1, DefaultConfig.animDuration, "Config.animDuration")
 local textPosOptionsHeader = ConfigPanel:CreateHeader("Text Position Options", "GameFontNormalLarge", animDurationSlider, "TOPLEFT", "BOTTOMLEFT", 0, -32)
 local attachModeHeader = ConfigPanel:CreateHeader("Attach Text To", "GameFontHighlightSmall", textPosOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 0, -16)
 local attachModeDropDown = ConfigPanel:CreateDropDownMenu("Attach Mode", "", attachModeHeader, "LEFT", "LEFT", 88, -3, AttachModesMenu, "Config.attachMode")
 
-local fallbackCheckbox = ConfigPanel:CreateCheckbox("Attachment Fallback", "When a nameplate isnt available, the text will temporarily attach to the screen center instead", attachModeHeader, "TOPLEFT", "BOTTOMLEFT", 0, -16, DefaultConfig.preventOverlap, "Config.preventOverlap")
-local overlapCheckbox = ConfigPanel:CreateCheckbox("Prevent Text Overlap", "Prevents damage text frames from overlapping each other", fallbackCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, 0, DefaultConfig.attachModeFallback, "Config.attachModeFallback")
-local areaSliderX = ConfigPanel:CreateSlider("Text Area X Offset (screen only)", "Horizontal offset of animation area", overlapCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, -32, -700, 700, 1, DefaultConfig.areaX, "Config.areaX")
+local fallbackCheckbox = ConfigPanel:CreateCheckbox("Attachment Fallback", "When a nameplate isnt available, the text will temporarily attach to the screen center instead", attachModeHeader, "TOPLEFT", "BOTTOMLEFT", 0, -16, DefaultConfig.attachModeFallback, "Config.attachModeFallback")
+local overlapCheckbox = ConfigPanel:CreateCheckbox("Prevent Text Overlap", "Prevents damage text frames from overlapping each other", fallbackCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, 0, DefaultConfig.preventOverlap, "Config.preventOverlap")
+local areaSliderX = ConfigPanel:CreateSlider("Text Area X Offset (screen only)", "Horizontal offset of animation area", overlapCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, -24, -700, 700, 1, DefaultConfig.areaX, "Config.areaX")
 local areaSliderY = ConfigPanel:CreateSlider("Text Area Y Offset (screen only)", "Vertical offset of animation area", areaSliderX, "TOPLEFT", "BOTTOMLEFT", 0, -32, -400, 400, 1, DefaultConfig.areaY, "Config.areaY")
+
+local textFormatOptionsHeader = ConfigPanel:CreateHeader("Text Formatting", "GameFontNormalLarge", areaSliderY, "TOPLEFT", "BOTTOMLEFT", 0, -32)
+local abbrevCheckbox = ConfigPanel:CreateCheckbox("Abbreviate Large Numbers", "Abbreviate large numbers (ex.1K)", textFormatOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 0, -8, DefaultConfig.abbreviateNumbers, "Config.abbreviateNumbers")
+local kiloSepCheckbox = ConfigPanel:CreateCheckbox("Add Thousands Separator", "Add thousands separator (ex.100,000,000)", abbrevCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, 0, DefaultConfig.kiloSeparator, "Config.kiloSeparator")
+
 local colorTableFrame = ConfigPanel:CreateChildFrame("TOPLEFT", "TOPRIGHT", animDurationSlider, 20, 10, 300, 340)
 local colorTableHeader = colorTableFrame:CreateHeader("Damage Type Colors", "GameFontHighlightMedium", colorTableFrame, "TOP", "TOP", 0, 0)
 local colorTableX, colorTableY, colorTableCounter = 20, 0, 0
@@ -2112,8 +2123,12 @@ local CONFIG_LAYOUT = {
     }
 }
 
+ConfigPanel:HookScript("OnShow", function(self) CFCT._testMode = true end)
+ConfigPanel:HookScript("OnHide", function(self) CFCT._testMode = false end)
 for _, cat in ipairs(CONFIG_LAYOUT) do
     local subpanel = ConfigPanel:CreateSubPanel(cat.catname)
+    subpanel:HookScript("OnShow", function(self) CFCT._testMode = true end)
+    subpanel:HookScript("OnHide", function(self) CFCT._testMode = false end)
     local parent = nil
     for _, subcat in ipairs(cat.subcatlist) do
         if not parent then
@@ -2123,4 +2138,5 @@ for _, cat in ipairs(CONFIG_LAYOUT) do
         end
     end
 end
+
 
