@@ -1920,6 +1920,21 @@ end
 
 local function CreateConfigPanel(name, parent, height)
     local sf = CreateFrame('ScrollFrame', "ClassicFCTConfigPanel_"..gsub(name, " ", ""), UIParent, "UIPanelScrollFrameTemplate")
+    local sfname = sf:GetName()
+    sf.scrollbar = getglobal(sfname.."ScrollBar")
+    sf.scrollupbutton = getglobal(sfname.."ScrollBarScrollUpButton")
+    sf.scrolldownbutton = getglobal(sfname.."ScrollBarScrollDownButton")
+
+    sf.scrollupbutton:ClearAllPoints();
+    sf.scrollupbutton:SetPoint("TOPLEFT", sf, "TOPRIGHT", -6, -2);
+    
+    sf.scrolldownbutton:ClearAllPoints();
+    sf.scrolldownbutton:SetPoint("BOTTOMLEFT", sf, "BOTTOMRIGHT", -6, 2);
+    
+    sf.scrollbar:ClearAllPoints();
+    sf.scrollbar:SetPoint("TOP", sf.scrollupbutton, "BOTTOM", 0, -2);
+    sf.scrollbar:SetPoint("BOTTOM", sf.scrolldownbutton, "TOP", 0, 2);
+
     sf.name = name
     sf.parent = parent
     sf.refresh = Refresh
@@ -1927,10 +1942,11 @@ local function CreateConfigPanel(name, parent, height)
     CFCT.ConfigPanels[#CFCT.ConfigPanels + 1] = sf
 
     local p = CreateFrame("Frame", sf:GetName().."_ScrollChild", sf)
+    p.refresh = function(self) sf:refresh() end 
     p.widgets = {}
     p.widgetCount = 0
     p.CreateSubPanel = function(self, name, height)
-        return CreateConfigPanel(name, self.name, height)
+        return CreateConfigPanel(name, sf.name, height)
     end
     p.CreateChildFrame = CreateChildFrame
     p.CreateCategoryPanel = CreateCategoryPanel
@@ -1943,8 +1959,6 @@ local function CreateConfigPanel(name, parent, height)
     p.CreateColorOption = CreateColorOption
     p.AddFrame = AddFrame
     p.NewFrameID = NewFrameID
-    -- p:SetAllPoints()
-    -- p:Show()
     sf.panel = p
     sf:SetScrollChild(p)
     sf:SetAllPoints()
@@ -1962,7 +1976,7 @@ end
 
 --ConfigPanel Layout
 
-local ConfigPanel = CreateConfigPanel("ClassicFCT", nil, 800)
+local ConfigPanel = CreateConfigPanel("ClassicFCT", nil, 8000)
 CFCT.ConfigPanel = ConfigPanel
 local headerGlobal = ConfigPanel:CreateHeader("Global Options", "GameFontNormalLarge", ConfigPanel, "TOPLEFT", "TOPLEFT", 16, -16)
 local enabledCheckbox = ConfigPanel:CreateCheckbox("Enable ClassicFCT", "Enables/Disables the addon", headerGlobal, "LEFT", "LEFT", 210, 0, DefaultVars.enabled, "enabled")
@@ -2139,7 +2153,7 @@ local CONFIG_LAYOUT = {
 ConfigPanel:HookScript("OnShow", function(self) CFCT._testMode = true end)
 ConfigPanel:HookScript("OnHide", function(self) CFCT._testMode = false end)
 for _, cat in ipairs(CONFIG_LAYOUT) do
-    local subpanel = ConfigPanel:CreateSubPanel(cat.catname, 800)
+    local subpanel = ConfigPanel:CreateSubPanel(cat.catname)
     subpanel:HookScript("OnShow", function(self) CFCT._testMode = true end)
     subpanel:HookScript("OnHide", function(self) CFCT._testMode = false end)
     local parent = nil
