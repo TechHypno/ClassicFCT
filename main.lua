@@ -33,10 +33,12 @@ local function InitFontString(self, unit, text, typeColor, icon, cat)
     self:SetShadowOffset(catConfig.fontSize/14, catConfig.fontSize/14)
     self:SetDrawLayer("OVERLAY")
     self:SetPoint("BOTTOM", 0, 0)
-    if (cfctConfig.abbreviateNumbers) then
-        text = AbbreviateNumbers(text)
-    elseif (cfctConfig.kiloSeparator) then
-        text = FormatThousandSeparator(text)
+    if (type(text) == 'number') then
+        if (cfctConfig.abbreviateNumbers) then
+            text = AbbreviateNumbers(text)
+        elseif (cfctConfig.kiloSeparator) then
+            text = FormatThousandSeparator(text)
+        end
     end
     if (catConfig.showIcons) then text = icon..text end
     self:SetText(text)
