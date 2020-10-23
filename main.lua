@@ -1,9 +1,10 @@
 local addonName, CFCT = ...
 _G[addonName] = CFCT
 
-local tinsert, tremove, format, strlen, strsub, gsub, floor, sin, cos, asin, acos, random, select, pairs, ipairs, bitband = tinsert, tremove, format, strlen, strsub, gsub, floor, sin, cos, asin, acos, random, select, pairs, ipairs, bit.band
+local tinsert, tremove, tsort, format, strlen, strsub, gsub, floor, sin, cos, asin, acos, random, select, pairs, ipairs, unpack, bitband = tinsert, tremove, table.sort, format, strlen, strsub, gsub, floor, sin, cos, asin, acos, random, select, pairs, ipairs, unpack, bit.band
+local InCombatLockdown = InCombatLockdown
 local AbbreviateNumbers = AbbreviateNumbers
-
+local GetTime = GetTime
 
 CFCT.enabled = true
 CFCT.frame = CreateFrame("Frame", "CFCT.frame", UIParent)
@@ -19,6 +20,38 @@ f:SetPoint("CENTER", 0, 0)
 local animAreas = CFCT.animating
 local fsc = CFCT.fontStringCache
 
+
+local damageRollingAverage = 0
+function CFCT:DamageRollingAverage()
+    return damageRollingAverage
+end
+
+local ROLLING_AVERAGE_LENGTH = 10
+local rollingAverageTimer = 0
+local damageCache = {}
+local function AddToAverage(value)
+    if CFCT._testMode and not InCombatLockdown() then return end
+    tinsert(damageCache, {
+        value = value,
+        time = now
+    })
+end
+local ROLLINGAVERAGE_UPDATE_INTERVAL = 0.5
+local function CalculateRollingAverage()
+    local cacheSize = #damageCache
+    local damage, count = 0, 0
+    for k,v in ipairs(damageCache) do
+        if (cacheSize > 200) and ((now - v.time) > ROLLING_AVERAGE_LENGTH) then
+            tremove(damageCache, k)
+        else
+            damage = damage + v.value
+            count = count + 1
+        end
+    end
+    damageRollingAverage = count > 0 and damage / count or 0
+end
+
+
 local function FormatThousandSeparator(v)
     local s = format("%d", floor(v))
     local pos = strlen(s) % 3
@@ -26,43 +59,25 @@ local function FormatThousandSeparator(v)
     return strsub(s, 1, pos)..gsub(strsub(s, pos+1), "(...)", ",%1")
 end
 
-local function InitFontString(self, unit, text, typeColor, icon, cat)
-    local cfctConfig = CFCT.Config
-    local catConfig = cfctConfig[cat]
-    self:SetFont(catConfig.fontPath, catConfig.fontSize, catConfig.fontStyle)
-    self:SetShadowOffset(catConfig.fontSize/14, catConfig.fontSize/14)
+local function InitFontString(self, state)
+    local fontOptions = state.fontOptions
+    self:SetFont(fontOptions.fontPath, fontOptions.fontSize, fontOptions.fontStyle)
+    self:SetShadowOffset(fontOptions.fontSize/14, fontOptions.fontSize/14)
     self:SetDrawLayer("OVERLAY")
     self:SetPoint("BOTTOM", 0, 0)
-    if (cfctConfig.abbreviateNumbers) then
-        text = AbbreviateNumbers(text)
-    elseif (cfctConfig.kiloSeparator) then
-        text = FormatThousandSeparator(text)
-    end
-    if (catConfig.showIcons) then text = icon..text end
-    self:SetText(text)
-    if (catConfig.colorByType == true) and typeColor then
-        local r, g, b = CFCT.Color2RGBA((strlen(typeColor) == 6) and "FF"..typeColor or typeColor)
-        local a = select(4, CFCT.Color2RGBA(catConfig.fontColor))
-        self:SetTextColor(r, g, b)
-        self.maxAlpha = a
-    else
-        local r, g, b, a = CFCT.Color2RGBA(catConfig.fontColor)
-        self:SetTextColor(r, g, b)
-        self.maxAlpha = a
-    end
-    self:SetAlpha(self.maxAlpha)
-    self:SetShadowColor(0,0,0,self.maxAlpha/2)
+    self:SetText(state.text)
+    self:SetTextColor(unpack(fontOptions.fontColor))
+    self:SetAlpha(fontOptions.fontAlpha)
+    self:SetShadowColor(0,0,0,fontOptions.fontAlpha/2)
     self.initialTime = now
-    self.state = {
-        cat = cat,
-        unit = unit,
-        height = self:GetStringHeight(),
-        width = self:GetStringWidth(),
-        posX = 0,
-        posY = 0,
-        direction = 0
-    }
+    self.state = state
+    self.state.height = self:GetStringHeight()
+    self.state.width = self:GetStringWidth()
+    self.state.posX = 0
+    self.state.posY = 0
+    self.state.direction = 0
     self:Show()
+    return self
 end
 
 local function ReleaseFontString(self)
@@ -333,7 +348,45 @@ local GRID = {
 
 local gapX = 30
 local gapY = 50
-local function SortFrames(frames)
+local function SortFrames(unsortedFrames)
+    local frames = {}
+    if CFCT.Config.sortByDamage then
+        local missPrio = CFCT.Config.sortMissPrio
+        local tinsert = tinsert
+        local count = 0
+        for k,v in ipairs(unsortedFrames) do
+            if (k == 1) then
+                tinsert(frames, v)
+                count = count + 1
+            else
+                local s1 = v.state
+                for i,e in ipairs(frames) do
+                    local s2 = e.state
+                    if s2.isNumber and s1.isNumber then
+                        if (s2.value < s1.value) then
+                            tinsert(frames, i, v)
+                            count = count + 1
+                            break
+                        else
+                            tinsert(frames, i + 1, v)
+                            count = count + 1
+                            break
+                        end
+                    elseif (s1.isString ~= s2.isString) and (missPrio or s1.isNumber) then
+                        tinsert(frames, i, v)
+                        count = count + 1
+                        break
+                    elseif (i == count) then
+                        tinsert(frames, i + 1, v)
+                        count = count + 1
+                        break
+                    end
+                end
+            end
+        end
+    else
+        frames = unsortedFrames
+    end
     for k, e in ipairs(frames) do
         local gridX = GRID[k] and (GRID[k].x and frames[GRID[k].x.p].state.gridX + GRID[k].x.o * (gapX + frames[GRID[k].x.p].state.width + 0.5*(e.state.width - frames[GRID[k].x.p].state.width))) or 0
         local gridY = GRID[k] and (GRID[k].y and frames[GRID[k].y.p].state.gridY + GRID[k].y.o * (gapY + (GRID[k].y.o < 0 and e.state.height or frames[GRID[k].y.p].state.height))) or 0
@@ -376,7 +429,7 @@ local ANIMATIONS = {
         local duration = animConfig.duration * CFCT.Config.animDuration
         local endTime = self.initialTime + duration
         if (now <= endTime) then
-            local fadeInAlpha = AnimateLinearAbsolute(self.initialTime, duration, 0, self.maxAlpha)
+            local fadeInAlpha = AnimateLinearAbsolute(self.initialTime, duration, 0, self.state.fontOptions.fontAlpha)
             local avgFadeInOutAlpha = (fadeInAlpha + (self.state.fadeOutAlpha or fadeInAlpha)) * 0.5
             -- print("FadeIn", avgFadeInOutAlpha)
             self:SetAlpha(avgFadeInOutAlpha)
@@ -391,7 +444,7 @@ local ANIMATIONS = {
         local duration = animConfig.duration
         local startTime = self.initialTime + CFCT.Config.animDuration - duration
         if (now >= startTime) then
-            local fadeOutAlpha = AnimateLinearAbsolute(startTime, duration, self.maxAlpha, 0)
+            local fadeOutAlpha = AnimateLinearAbsolute(startTime, duration, self.state.fontOptions.fontAlpha, 0)
             local avgFadeInOutAlpha = (fadeOutAlpha + (self.state.fadeInAlpha or fadeOutAlpha)) * 0.5
             -- print("FadeOut", avgFadeInOutAlpha)
             self:SetAlpha(avgFadeInOutAlpha)
@@ -456,14 +509,10 @@ local function UpdateFontString(self, index, elapsed)
     end
     self.state.height = self:GetStringHeight()
     self.state.width = self:GetStringWidth()
-    local tn = UnitExists("target") and C_NamePlate.GetNamePlateForUnit("target")
-    local en = UnitExists(self.state.unit) and C_NamePlate.GetNamePlateForUnit(self.state.unit)
-    if (fctConfig.attachMode == "tn") and tn then
+    local nameplate = UnitExists(self.state.unit) and C_NamePlate.GetNamePlateForUnit(self.state.unit)
+    if ((fctConfig.attachMode == "tn") or (fctConfig.attachMode == "en")) and nameplate then
         self:Show()
-        self:SetPoint("BOTTOM", tn, "CENTER", self.state.posX, self.state.posY)
-    elseif (fctConfig.attachMode == "en") and self.state.unit and en then
-        self:Show()
-        self:SetPoint("BOTTOM", en, "CENTER", self.state.posX, self.state.posY)
+        self:SetPoint("BOTTOM", nameplate.UnitFrame, "CENTER", self.state.posX, self.state.posY)
     elseif (fctConfig.attachMode == "sc") or (fctConfig.attachModeFallback == true) then
         self:Show()
         self:SetPoint("BOTTOM", f, "CENTER", fctConfig.areaX + self.state.posX, fctConfig.areaY + self.state.posY)
@@ -484,17 +533,139 @@ local function GrabFontString()
 end
 
 
+local function SpellIconText(spellid)
+    return "|T"..select(3,GetSpellInfo(spellid))..":0|t"
+end
 
 
-local function DispatchText(unit, text, typeColor, icon, cat)
-    local fontString = GrabFontString()
-    fontString:Init(unit, text, typeColor, icon, cat)
-    unit = (CFCT.Config.attachMode == "en") and unit or "target"
-    local animArea = animAreas[unit]
-    if animArea then
-        tinsert(animAreas[unit], 1, fontString)
+local function GetTypeColor(school)
+    return CFCT.Config.colorTable[school]
+end
+
+
+local function DispatchText(unit, event, value, spellid, crit, miss, pet, school, count)
+    local cat = (pet and "pet" or "")..event..(crit and "crit" or miss and "miss" or "")
+    local fctConfig = CFCT.Config
+    local catConfig = fctConfig[cat]
+    local text = value
+
+    local unit = (fctConfig.attachMode == "en") and unit or "target"
+
+    count = count or 1
+    if (not miss) then
+        if (not crit) then
+            AddToAverage(text / count)
+        end
+        if (fctConfig.filterAbsoluteEnabled and (fctConfig.filterAbsoluteThreshold > text))
+        or (fctConfig.filterRelativeEnabled and ((fctConfig.filterRelativeThreshold * 0.01 * CFCT:UnitHealthMax('player')) > text))
+        or (fctConfig.filterAverageEnabled and ((fctConfig.filterAverageThreshold * 0.01 * CFCT:DamageRollingAverage()) > text)) then
+            return false
+        end
+
+        if (fctConfig.abbreviateNumbers) then
+            text = AbbreviateNumbers(text)
+        elseif (fctConfig.kiloSeparator) then
+            text = FormatThousandSeparator(text)
+        end
+    end
+    
+    if (count > 1) and fctConfig.mergeEventsCounter then
+        text = text.." x"..tostring(count)
+    end
+
+    local icon = spellid and SpellIconText(spellid) or ""
+    if (icon and catConfig.showIcons) then text = icon..text end
+
+    
+    local fontColor, fontAlpha
+    local typeColor = GetTypeColor(school)
+    if (catConfig.colorByType == true) and typeColor then
+        local r, g, b, a = CFCT.Color2RGBA((strlen(typeColor) == 6) and "FF"..typeColor or typeColor)
+        local a = min(a, select(4, CFCT.Color2RGBA(catConfig.fontColor)))
+        fontColor = {r, g, b, a}
+        fontAlpha = a
+    else
+        local r, g, b, a = CFCT.Color2RGBA(catConfig.fontColor)
+        fontColor = {r, g, b, a}
+        fontAlpha = a
+    end
+
+    tinsert(animAreas[unit], 1, GrabFontString():Init({
+        cat = cat,
+        unit = unit,
+        text = text,
+        value = value,
+        fontOptions = {
+            fontPath = catConfig.fontPath,
+            fontSize = catConfig.fontSize,
+            fontStyle = catConfig.fontStyle,
+            fontColor = fontColor,
+            fontAlpha = fontAlpha
+        },
+        isNumber = not miss,
+        -- isCrit = crit,
+        isString = miss
+    }))
+end
+
+
+local eventCache = {}
+CFCT.eventCache = eventCache
+local function CacheEvent(unit, event, text, spellid, crit, miss, pet, school)
+    local id = tostring(pet)..tostring(spellid)..tostring(school)
+    local mergeTime = CFCT.Config.mergeEventsInterval
+    local now = GetTime()
+    local record = eventCache[id] or {
+        events = {},
+        expiry = nil
+    }
+    tinsert(record.events, {
+        time = now,
+        unit = unit,
+        event = event,
+        text = text,
+        spellid = spellid,
+        crit = crit,
+        miss = miss,
+        pet = pet,
+        school = school,
+        count = 1
+    })
+    record.expiry = now + mergeTime
+    eventCache[id] = record
+end
+
+local function ProcessCachedEvents()
+    local mergingEnabled = CFCT.Config.mergeEvents
+    for id,record in pairs(eventCache) do
+        if mergingEnabled then
+            if (now > record.expiry) then
+                local merge
+                for _,e in ipairs(record.events) do
+                    if e.miss then
+                        DispatchText(e.unit, e.event, e.text, e.spellid, e.crit, e.miss, e.pet, e.school)
+                    elseif not merge then
+                        merge = e
+                    else
+                        merge.text = merge.text + e.text
+                        merge.count = merge.count + 1
+                        merge.crit = merge.crit or e.crit
+                    end
+                end
+                if merge then
+                    DispatchText(merge.unit, merge.event, merge.text, merge.spellid, merge.crit, merge.miss, merge.pet, merge.school, merge.count)
+                end
+                eventCache[id] = nil
+            end
+        else
+            for _,e in ipairs(record.events) do
+                DispatchText(e.unit, e.event, e.text, e.spellid, e.crit, e.miss, e.pet, e.school)
+            end
+            eventCache[id] = nil
+        end
     end
 end
+
 
 -- CFCT.TestFrames = {}
 CFCT._testMode = false
@@ -564,19 +735,22 @@ function CFCT:Test(n)
     local numplates = #nameplates
     local it = (numplates > 0) and (n*numplates) or n
     for i = 1, it do
-        local icon = ""
-        while (icon == "") do
-            local iconid = select(3,GetSpellInfo(random(1,32767)))
-            if iconid then icon = "|T"..iconid..":0|t" end
+        local spellid
+        repeat
+            spellid = random(1,32767)
+        until select(3,GetSpellInfo(spellid))
+
+        local school = random(1,128)
+        local pet = (random(1,3) == 1)
+        local crit = (random(1,3) == 1)
+        local miss = not crit and (random(1,2) == 1)
+        local event = cats[random(1,#cats)]
+        local amount = crit and 2674 or miss and "Missed" or 1337
+        if crit and miss then
+            print(amount, crit, miss)
         end
-        local color = CFCT.Config.colorTable[random(1,128)] or CFCT.Config.colorTable[1]
-        local pet = random(1,3) == 1 and "pet" or ""
-        local modifier = random(1,3)
-        modifier = ((modifier == 1) and "") or ((modifier == 2) and "crit" or "miss")
-        local cat = pet..cats[random(1,#cats)]..modifier
-        local amount = cat:find('crit') and 2674 or 1337
         local unit = (numplates > 0) and nameplates[random(1,numplates)].UnitFrame.unit or "target"
-        DispatchText(unit, amount, color, icon, cat)
+        DispatchText(unit, event, amount, spellid, crit, miss, pet, school)
     end
 end
 
@@ -602,6 +776,7 @@ end
 
 local events = {
     COMBAT_LOG_EVENT_UNFILTERED = true,
+    UNIT_MAXHEALTH = true,
     ADDON_LOADED = true,
     PLAYER_LOGOUT = true,
     PLAYER_ENTERING_WORLD = true,
@@ -610,12 +785,21 @@ local events = {
 }
 for e,_ in pairs(events) do f:RegisterEvent(e) end
 f:SetScript("OnEvent", function(self, event, ...) self[event](self, ...) end)
+
+
+
+
 f:SetScript("OnUpdate", function(self, elapsed)
     now = GetTime()
-    if CFCT._testMode and (now > testModeTimer) then
+    if CFCT._testMode and (now > testModeTimer) and not InCombatLockdown() then
         CFCT:Test(2)
         testModeTimer = now + CFCT.Config.animDuration / 2
     end
+    if (now > rollingAverageTimer) then
+        CalculateRollingAverage()
+        rollingAverageTimer = now + ROLLINGAVERAGE_UPDATE_INTERVAL
+    end
+    ProcessCachedEvents()
     for _, animArea in pairs(animAreas) do
         for k, fontString in ipairs(animArea) do
             if fontString:Update(k, elapsed) then
@@ -629,6 +813,7 @@ f:SetScript("OnUpdate", function(self, elapsed)
             SortFrames(animArea)
         end
         if (now > cvarTimer) then
+            self:SetFrameStrata(CFCT.Config.textStrata or "MEDIUM")
             checkCvars()
             cvarTimer = now + CVAR_CHECK_INTERVAL
         end
@@ -663,6 +848,16 @@ function f:NAME_PLATE_UNIT_REMOVED(unit)
     local guid = nameplates[unit]
     nameplates[unit] = nil
     nameplates[guid] = nil
+end
+
+local unitHealthMax = {}
+function f:UNIT_MAXHEALTH(unit)
+    if (unit == 'player') then
+        unitHealthMax[unit] = UnitHealthMax(unit)
+    end
+end
+function CFCT:UnitHealthMax(unit)
+    return unitHealthMax[unit] or UnitHealthMax(unit)
 end
 
 
@@ -722,9 +917,6 @@ local CLEU_HEALING_EVENT = {
     SPELL_BUILDING_HEAL = true,
     SPELL_PERIODIC_HEAL = true,
 }
-local function GetTypeColor(school)
-    return CFCT.Config.colorTable[school]
-end
 
 
 local MISS_EVENT_STRINGS = {
@@ -777,37 +969,21 @@ function f:COMBAT_LOG_EVENT_UNFILTERED()
 end
 
 
-local function SpellIconText(spellid)
-    return "|T"..select(3,GetSpellInfo(spellid))..":0|t"
-end
 
-local function FormatTextColor(text, color)
-    return "|cFF"..color..text.."|r"
-end
 
 function f:DamageEvent(unit, spellid, amount, crit, pet, school)
     if (spellid == 75) then spellid = nil end -- 75 = autoshot
-    local cat = spellid and "spell" or "auto"
-    if pet then cat = "pet"..cat end
-    if crit then cat = cat.."crit" end
-    local icon = spellid and SpellIconText(spellid) or ""
-    local typeColor = GetTypeColor(school)
-    DispatchText(unit, amount, typeColor, icon, cat)
+    local event = spellid and "spell" or "auto"
+    CacheEvent(unit, event, amount, spellid, crit, false, pet, school)
 end
 function f:MissEvent(unit, spellid, amount, misstype, pet, school)
     if (spellid == 75) then spellid = nil end -- 75 = autoshot
-    local cat = spellid and "spellmiss" or "automiss"
-    if pet then cat = "pet"..cat end
-    local icon = spellid and SpellIconText(spellid) or ""
-    local typeColor = GetTypeColor(school)
-    DispatchText(unit, MISS_EVENT_STRINGS[misstype], typeColor, icon, cat)
+    local event = spellid and "spell" or "auto"
+    CacheEvent(unit, event, strlower(misstype):gsub("^%l", strupper), spellid, false, true, pet, school)
 end
 function f:HealingEvent(unit, spellid, amount, crit, pet, school)
-    local cat = "heal"
-    if pet then cat = "pet"..cat end
-    if crit then cat = cat.."crit" end
-    local icon = spellid and SpellIconText(spellid) or ""
-    DispatchText(unit, amount, nil, icon, cat)
+    local event = "heal"
+    CacheEvent(unit, event, amount, spellid, crit, false, pet, school)
 end
 
 
