@@ -10,7 +10,7 @@ CFCT.enabled = true
 CFCT.frame = CreateFrame("Frame", "CFCT.frame", UIParent)
 CFCT.animating = {target={}}
 CFCT.fontStringCache = {}
-
+-- CFCT.Debug = true
 
 local now = GetTime()
 local f = CFCT.frame
@@ -76,7 +76,7 @@ local function InitFontString(self, state)
     self.state.posX = 0
     self.state.posY = 0
     self.state.direction = 0
-    self:Show()
+    self:Hide()
     return self
 end
 
@@ -345,7 +345,6 @@ local GRID = {
 }
 
 
-
 local gapX = 30
 local gapY = 50
 local function SortFrames(unsortedFrames)
@@ -362,16 +361,10 @@ local function SortFrames(unsortedFrames)
                 local s1 = v.state
                 for i,e in ipairs(frames) do
                     local s2 = e.state
-                    if s2.isNumber and s1.isNumber then
-                        if (s2.value < s1.value) then
-                            tinsert(frames, i, v)
-                            count = count + 1
-                            break
-                        else
-                            tinsert(frames, i + 1, v)
-                            count = count + 1
-                            break
-                        end
+                    if (s2.isNumber and s1.isNumber) and (s2.value < s1.value) then
+                        tinsert(frames, i, v)
+                        count = count + 1
+                        break
                     elseif (s1.isString ~= s2.isString) and (missPrio or s1.isNumber) then
                         tinsert(frames, i, v)
                         count = count + 1
@@ -387,6 +380,11 @@ local function SortFrames(unsortedFrames)
     else
         frames = unsortedFrames
     end
+    -- if CFCT.Debug then
+    --     for k,v in pairs(frames) do
+    --         v:SetText(k .. v.state.text)
+    --     end
+    -- end
     for k, e in ipairs(frames) do
         local gridX = GRID[k] and (GRID[k].x and frames[GRID[k].x.p].state.gridX + GRID[k].x.o * (gapX + frames[GRID[k].x.p].state.width + 0.5*(e.state.width - frames[GRID[k].x.p].state.width))) or 0
         local gridY = GRID[k] and (GRID[k].y and frames[GRID[k].y.p].state.gridY + GRID[k].y.o * (gapY + (GRID[k].y.o < 0 and e.state.height or frames[GRID[k].y.p].state.height))) or 0
@@ -402,14 +400,15 @@ local function SortFrames(unsortedFrames)
             e.state.gridY = 9999
         end
     end
+    return frames
 end
 
-function AnimateLinearAbsolute(startTime, duration, minval, maxval)
+local function AnimateLinearAbsolute(startTime, duration, minval, maxval)
     local prog = min(max((now - startTime) / duration, 0), 1)
     return (maxval - minval) * prog + minval
 end
 
-function AnimateLinearRelative(startTime, duration, minval, maxval, curval)
+local function AnimateLinearRelative(startTime, duration, minval, maxval, curval)
     local prog = min(max((now - startTime) / duration, 0), 1)
     return ((maxval - minval) * prog + minval) - curval
 end
@@ -488,7 +487,7 @@ local ANIMATIONS = {
 
 }
 
-local function UpdateFontString(self, index, elapsed)
+local function UpdateFontString(self, elapsed)
     local fctConfig = CFCT.Config
     if ((now - self.initialTime) > fctConfig.animDuration) then
         return true
@@ -509,13 +508,17 @@ local function UpdateFontString(self, index, elapsed)
     end
     self.state.height = self:GetStringHeight()
     self.state.width = self:GetStringWidth()
+end
+
+local function UpdateFontPos(self)
+    local fctConfig = CFCT.Config
     local nameplate = UnitExists(self.state.unit) and C_NamePlate.GetNamePlateForUnit(self.state.unit)
     if ((fctConfig.attachMode == "tn") or (fctConfig.attachMode == "en")) and nameplate then
-        self:Show()
         self:SetPoint("BOTTOM", nameplate.UnitFrame, "CENTER", self.state.posX, self.state.posY)
-    elseif (fctConfig.attachMode == "sc") or (fctConfig.attachModeFallback == true) then
         self:Show()
+    elseif (fctConfig.attachMode == "sc") or (fctConfig.attachModeFallback == true) then
         self:SetPoint("BOTTOM", f, "CENTER", fctConfig.areaX + self.state.posX, fctConfig.areaY + self.state.posY)
+        self:Show()
     else
         self:Hide()
     end
@@ -526,7 +529,8 @@ local function GrabFontString()
     local fontString = f:CreateFontString()
 
     fontString.Init = InitFontString
-    fontString.Update = UpdateFontString
+    fontString.UpdateAnimation = UpdateFontString
+    fontString.UpdatePosition = UpdateFontPos
     fontString.Release = ReleaseFontString
 
     return fontString
@@ -593,6 +597,7 @@ local function DispatchText(unit, event, value, spellid, crit, miss, pet, school
     tinsert(animAreas[unit], 1, GrabFontString():Init({
         cat = cat,
         unit = unit,
+        icon = icon,
         text = text,
         value = value,
         fontOptions = {
@@ -787,8 +792,6 @@ for e,_ in pairs(events) do f:RegisterEvent(e) end
 f:SetScript("OnEvent", function(self, event, ...) self[event](self, ...) end)
 
 
-
-
 f:SetScript("OnUpdate", function(self, elapsed)
     now = GetTime()
     if CFCT._testMode and (now > testModeTimer) and not InCombatLockdown() then
@@ -800,9 +803,9 @@ f:SetScript("OnUpdate", function(self, elapsed)
         rollingAverageTimer = now + ROLLINGAVERAGE_UPDATE_INTERVAL
     end
     ProcessCachedEvents()
-    for _, animArea in pairs(animAreas) do
+    for k, animArea in pairs(animAreas) do
         for k, fontString in ipairs(animArea) do
-            if fontString:Update(k, elapsed) then
+            if fontString:UpdateAnimation(k, elapsed) then
                 fontString:Release()
                 tremove(animArea, k)
             else
@@ -810,7 +813,17 @@ f:SetScript("OnUpdate", function(self, elapsed)
             end
         end
         if CFCT.Config.preventOverlap then
-            SortFrames(animArea)
+            local frames = SortFrames(animArea)
+            -- if CFCT.Debug and (k == "target") then
+            --     print("---frames---")
+            --     for k,v in ipairs(frames) do
+            --         print(v:GetText(),v.state.width,v.state.height,v.state.gridX,v.state.gridY)
+            --     end
+            --     print("---------------")
+            -- end
+        end
+        for _, e in pairs(animArea) do
+            e:UpdatePosition()
         end
         if (now > cvarTimer) then
             self:SetFrameStrata(CFCT.Config.textStrata or "MEDIUM")
@@ -835,6 +848,9 @@ end
 local playerGUID
 function f:PLAYER_ENTERING_WORLD()
     playerGUID = UnitGUID("player")
+    C_Timer.After(5,function()
+        CFCT:Log(GetAddOnMetadata(addonName, "Version").."\nNew in this version:\n    - Damage/Healing numbers filtering, sorting, merging")
+    end)
 end
 
 local nameplates = {}
