@@ -514,7 +514,7 @@ local function UpdateFontPos(self)
     local fctConfig = CFCT.Config
     local nameplate = UnitExists(self.state.unit) and C_NamePlate.GetNamePlateForUnit(self.state.unit)
     if ((fctConfig.attachMode == "tn") or (fctConfig.attachMode == "en")) and nameplate then
-        self:SetPoint("BOTTOM", nameplate.UnitFrame, "CENTER", self.state.posX, self.state.posY)
+        self:SetPoint("BOTTOM", nameplate.UnitFrame, "CENTER", fctConfig.areaNX + self.state.posX, fctConfig.areaNY + self.state.posY)
         self:Show()
     elseif (fctConfig.attachMode == "sc") or (fctConfig.attachModeFallback == true) then
         self:SetPoint("BOTTOM", f, "CENTER", fctConfig.areaX + self.state.posX, fctConfig.areaY + self.state.posY)

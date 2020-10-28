@@ -2137,7 +2137,7 @@ local overlapCheckbox = ConfigPanel:CreateCheckbox("Prevent Text Overlap", "Prev
 local areaSliderX = ConfigPanel:CreateSlider("Screen Center Text X Offset", "Horizontal offset of animation area", attachModeHeader, "TOPLEFT", "BOTTOMLEFT", 0, -28, -700, 700, 1, DefaultConfig.areaX, "Config.areaX")
 local areaSliderY = ConfigPanel:CreateSlider("Screen Center Text Y Offset", "Vertical offset of animation area", areaSliderX, "LEFT", "RIGHT", 16, 0, -400, 400, 1, DefaultConfig.areaY, "Config.areaY")
 local areaSliderNX = ConfigPanel:CreateSlider("Nameplate Text X Offset", "Horizontal offset of animation area", areaSliderX, "TOPLEFT", "BOTTOMLEFT", 0, -28, -400, 400, 1, DefaultConfig.areaNX, "Config.areaNX")
-local areaSliderNY = ConfigPanel:CreateSlider("Nameplate Text X Offset", "Vertical offset of animation area", areaSliderNX, "LEFT", "RIGHT", 16, 0, -400, 400, 1, DefaultConfig.areaNY, "Config.areaNY")
+local areaSliderNY = ConfigPanel:CreateSlider("Nameplate Text Y Offset", "Vertical offset of animation area", areaSliderNX, "LEFT", "RIGHT", 16, 0, -400, 400, 1, DefaultConfig.areaNY, "Config.areaNY")
 
 local textFormatOptionsHeader = ConfigPanel:CreateHeader("Number Formatting Options", "GameFontNormalLarge", textPosOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 0, -164)
 local abbrevCheckbox = ConfigPanel:CreateCheckbox("Abbreviate Large Numbers", "Abbreviate large numbers (ex.1K)", textFormatOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 20, -8, DefaultConfig.abbreviateNumbers, "Config.abbreviateNumbers")
