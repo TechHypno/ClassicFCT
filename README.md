@@ -24,3 +24,4 @@ Configurable variables include:
 - animation timing, scale and duration.
 - text font, style, size, custom color or by damage type.
 - spell icons for each damage/heal event.
+- filtering, sorting, merging

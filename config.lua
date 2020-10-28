@@ -1,23 +1,31 @@
 local addonName, CFCT = ...
 local tinsert, tremove, format, strlen, strsub, gsub, floor, sin, cos, asin, acos, random, select, pairs, ipairs, bitband = tinsert, tremove, format, strlen, strsub, gsub, floor, sin, cos, asin, acos, random, select, pairs, ipairs, bit.band
 
--- 9.0 PTR Fix
-local CreateFrame = function(type, name, parent, template)
-    local template = template or (BackdropTemplateMixin and "BackdropTemplate")
-    return CreateFrame(type, name, parent, template)
-end
-
 local DefaultPresets = {
     ["Classic"] = {
         animSpeed = 1,
         animDuration = 1.5,
         areaX = 0,
         areaY = 150,
+        areaNX = 0,
+        areaNY = 0,
+        textStrata = "MEDIUM",
         preventOverlap = true,
         attachMode = "tn",
         attachModeFallback = true,
         abbreviateNumbers = false,
         kiloSeparator = false,
+        filterAbsoluteEnabled = false,
+        filterAbsoluteThreshold = 100,
+        filterRelativeEnabled = false,
+        filterRelativeThreshold = 10,
+        filterAverageEnabled = false,
+        filterAverageThreshold = 10,
+        sortByDamage = false,
+        sortMissPrio = false,
+        mergeEvents = false,
+        mergeEventsInterval = 0.1,
+        mergeEventsCounter = true,
         colorTable = {
             -- Single Schools
             [SCHOOL_MASK_PHYSICAL]			        	= "ffff0000",
@@ -476,11 +484,25 @@ local DefaultPresets = {
         animDuration = 1.5,
         areaX = 0,
         areaY = 150,
+        areaNX = 0,
+        areaNY = 0,
+        textStrata = "MEDIUM",
         preventOverlap = true,
         attachMode = "tn",
         attachModeFallback = true,
         abbreviateNumbers = false,
         kiloSeparator = false,
+        filterAbsoluteEnabled = false,
+        filterAbsoluteThreshold = 100,
+        filterRelativeEnabled = false,
+        filterRelativeThreshold = 10,
+        filterAverageEnabled = false,
+        filterAverageThreshold = 10,
+        sortByDamage = false,
+        sortMissPrio = false,
+        mergeEvents = false,
+        mergeEventsInterval = 0.1,
+        mergeEventsCounter = true,
         colorTable = {
             -- Single Schools
             [SCHOOL_MASK_PHYSICAL]			        	= "ffff0000",
@@ -1213,6 +1235,45 @@ local AttachModesMenu = {
     }
 }
 
+local TextStrataMenu = {
+    -- {
+    --     text = "World",
+    --     value = "WORLD"
+    -- },
+    {
+        text = "Background",
+        value = "BACKGROUND"
+    },
+    {
+        text = "Low",
+        value = "LOW"
+    },
+    {
+        text = "Medium",
+        value = "MEDIUM"
+    },
+    {
+        text = "High",
+        value = "HIGH"
+    },
+    {
+        text = "Dialog",
+        value = "DIALOG"
+    },
+    {
+        text = "Fullscreen",
+        value = "FULLSCREEN"
+    },
+    {
+        text = "Fullscreen Dialog",
+        value = "FULLSCREEN_DIALOG"
+    },
+    {
+        text = "Tooltip",
+        value = "TOOLTIP"
+    }
+}
+
 
 
 local AnimationsMenu = {
@@ -1388,7 +1449,7 @@ local function CreateSlider(self, label, tooltip, parent, point1, point2, x, y, 
         SetValue(ConfigPath, val)
     end)
 
-    local valueBox = CreateFrame('editbox', nil, slider)
+    local valueBox = CreateFrame('editbox', nil, slider, "BackdropTemplate")
 	valueBox:SetPoint('TOP', slider, 'BOTTOM', 0, 0)
 	valueBox:SetSize(60, 14)
 	valueBox:SetFontObject(GameFontHighlightSmall)
@@ -1876,6 +1937,7 @@ local function CreateCategoryPanel(self, cat, anchor, point1, point2, x, y)
         show(self.curValue)
         updateStatus()
     end)
+
     return f
 end
 
@@ -1917,15 +1979,38 @@ local function CreateChildFrame(self, point1, point2, anchor, x, y, w, h)
     return f
 end
 
-local function CreateConfigPanel(name, parent)
-    local p = CreateFrame("Frame", "ClassicFCTConfigPanel_"..gsub(name, " ", ""), UIParent)
-    p.name = name
-    p.parent = parent
-    p.refresh = Refresh
+local function CreateConfigPanel(name, parent, height)
+    local Container = CreateFrame('frame', "ClassicFCTConfigPanel_"..gsub(name, " ", ""), UIParent)
+    local sf = CreateFrame('ScrollFrame', Container:GetName().."_ScrollFrame", Container, "UIPanelScrollFrameTemplate")
+    local sfname = sf:GetName()
+    sf.scrollbar = getglobal(sfname.."ScrollBar")
+    sf.scrollupbutton = getglobal(sfname.."ScrollBarScrollUpButton")
+    sf.scrolldownbutton = getglobal(sfname.."ScrollBarScrollDownButton")
+
+    sf.scrollupbutton:ClearAllPoints();
+    sf.scrollupbutton:SetPoint("TOPLEFT", sf, "TOPRIGHT", -6, -2);
+    
+    sf.scrolldownbutton:ClearAllPoints();
+    sf.scrolldownbutton:SetPoint("BOTTOMLEFT", sf, "BOTTOMRIGHT", -6, 2);
+    
+    sf.scrollbar:ClearAllPoints();
+    sf.scrollbar:SetPoint("TOP", sf.scrollupbutton, "BOTTOM", 0, -2);
+    sf.scrollbar:SetPoint("BOTTOM", sf.scrolldownbutton, "TOP", 0, 2);
+
+    Container.name = name
+    Container.parent = parent
+    Container.refresh = Refresh
+    InterfaceOptions_AddCategory(Container)
+    CFCT.ConfigPanels[#CFCT.ConfigPanels + 1] = Container
+    Container:SetAllPoints()
+    Container:Hide()
+
+    local p = CreateFrame("Frame", Container:GetName().."_ScrollChild")
+    p.refresh = function(self) Container:refresh() end 
     p.widgets = {}
     p.widgetCount = 0
-    p.CreateSubPanel = function(self, name)
-        return CreateConfigPanel(name, self.name)
+    p.CreateSubPanel = function(self, name, height)
+        return CreateConfigPanel(name, Container.name, height)
     end
     p.CreateChildFrame = CreateChildFrame
     p.CreateCategoryPanel = CreateCategoryPanel
@@ -1938,10 +2023,10 @@ local function CreateConfigPanel(name, parent)
     p.CreateColorOption = CreateColorOption
     p.AddFrame = AddFrame
     p.NewFrameID = NewFrameID
-    CFCT.ConfigPanels[#CFCT.ConfigPanels + 1] = p
-    InterfaceOptions_AddCategory(p)
-    p:SetAllPoints()
-    p:Hide()
+    Container.panel = p
+    sf:SetScrollChild(p)
+    sf:SetAllPoints()
+    p:HookScript("OnShow", function(self) self:SetSize(sf:GetWidth(), height or sf:GetHeight()) end)
     return p
 end
 
@@ -1949,7 +2034,7 @@ end
 
 --ConfigPanel Layout
 
-local ConfigPanel = CreateConfigPanel("ClassicFCT")
+local ConfigPanel = CreateConfigPanel("ClassicFCT", nil, 800)
 CFCT.ConfigPanel = ConfigPanel
 local headerGlobal = ConfigPanel:CreateHeader("Global Options", "GameFontNormalLarge", ConfigPanel, "TOPLEFT", "TOPLEFT", 16, -16)
 local enabledCheckbox = ConfigPanel:CreateCheckbox("Enable ClassicFCT", "Enables/Disables the addon", headerGlobal, "LEFT", "LEFT", 210, 0, DefaultVars.enabled, "enabled")
@@ -1962,7 +2047,7 @@ hideBlizzCheckbox:HookScript("OnShow", function(self)
 end)
 
 local headerPresets = ConfigPanel:CreateHeader("Config Presets", "GameFontNormalLarge", headerGlobal, "TOPLEFT", "BOTTOMLEFT", 0, -16)
-local newPresetBtn = ConfigPanel:CreateButton("New", "Creates a new preset", headerPresets, "TOPLEFT", "BOTTOMLEFT", 0, -16, function()
+local newPresetBtn = ConfigPanel:CreateButton("New", "Creates a new preset", headerPresets, "TOPLEFT", "TOPRIGHT", 94, 0, function()
     CFCT.Config:CreatePreset()
 end)
 local copyPresetBtn = ConfigPanel:CreateButton("Copy", "Creates a copy of the selected preset", newPresetBtn, "TOPLEFT", "BOTTOMLEFT", 0, 0, function()
@@ -1977,12 +2062,14 @@ local presetDropDown = ConfigPanel:CreateDropDownMenu("Presets", "Configuration 
     ConfigPanel:refresh()
 end)
 
-local savePresetBtn = ConfigPanel:CreateButton("Save", "Saves current configuration into the selected preset", presetDropDown.middle, "BOTTOMLEFT", "BOTTOMLEFT", 0, -2, function()
+local savePresetBtn = ConfigPanel:CreateButton("Save", "Saves current configuration into the selected preset", presetDropDown.middle, "BOTTOMRIGHT", "BOTTOM", 0, -2, function()
     CFCT.Config:SavePreset(CFCT.selectedPreset)
 end)
-local loadPresetBtn = ConfigPanel:CreateButton("Load", "Loads the selected preset, overwriting current configuration", savePresetBtn, "LEFT", "RIGHT", 0, 0, function()
+savePresetBtn:SetWidth(84)
+local loadPresetBtn = ConfigPanel:CreateButton("Load", "Loads the selected preset, overwriting current configuration", presetDropDown.middle, "BOTTOMLEFT", "BOTTOM", 0, -2, function()
     CFCT.Config:LoadPreset(CFCT.selectedPreset)
 end)
+loadPresetBtn:SetWidth(84)
 local deletePresetBtn = ConfigPanel:CreateButton("Delete", "Deletes the selected preset permanently", presetDropDown, "LEFT", "RIGHT", presetDropDown.middle:GetWidth(), 0, function()
     CFCT.Config:DeletePreset(CFCT.selectedPreset)
 end)
@@ -2036,29 +2123,67 @@ end)
 
 
 
-local headerGeneralSettings = ConfigPanel:CreateHeader("General Settings", "GameFontNormalLarge", copyPresetBtn, "TOPLEFT", "BOTTOMLEFT", 0, -16)
+local headerGeneralSettings = ConfigPanel:CreateHeader("General Settings", "GameFontNormalLarge", headerPresets, "TOPLEFT", "BOTTOMLEFT", 0, -32)
 
-local animDurationSlider = ConfigPanel:CreateSlider("Animation Duration", "Animation length in seconds", headerGeneralSettings, "TOPLEFT", "BOTTOMLEFT", 0, -24, 0.1, 5.0, 0.1, DefaultConfig.animDuration, "Config.animDuration")
-local textPosOptionsHeader = ConfigPanel:CreateHeader("Text Position Options", "GameFontNormalLarge", animDurationSlider, "TOPLEFT", "BOTTOMLEFT", 0, -32)
-local attachModeHeader = ConfigPanel:CreateHeader("Attach Text To", "GameFontHighlightSmall", textPosOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 0, -16)
-local attachModeDropDown = ConfigPanel:CreateDropDownMenu("Attach Mode", "", attachModeHeader, "LEFT", "LEFT", 88, -3, AttachModesMenu, "Config.attachMode")
+local animDurationSlider = ConfigPanel:CreateSlider("Animation Duration", "Animation length in seconds", headerGeneralSettings, "TOPLEFT", "BOTTOMLEFT", 20, -24, 0.1, 5.0, 0.1, DefaultConfig.animDuration, "Config.animDuration")
+local textPosOptionsHeader = ConfigPanel:CreateHeader("Text Position Options", "GameFontNormalLarge", headerGeneralSettings, "TOPLEFT", "BOTTOMLEFT", 0, -64)
+local textStrataHeader = ConfigPanel:CreateHeader("Text Strata", "GameFontHighlightSmall", textPosOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 20, -16)
+local textStrataDropDown = ConfigPanel:CreateDropDownMenu("Text Strata", "", textStrataHeader, "LEFT", "LEFT", 64, -3, TextStrataMenu, "Config.textStrata")
+local attachModeHeader = ConfigPanel:CreateHeader("Attach Text To", "GameFontHighlightSmall", textPosOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 20, -48)
+local attachModeDropDown = ConfigPanel:CreateDropDownMenu("Attach Mode", "", attachModeHeader, "LEFT", "LEFT", 64, -3, AttachModesMenu, "Config.attachMode")
 
-local fallbackCheckbox = ConfigPanel:CreateCheckbox("Attachment Fallback", "When a nameplate isnt available, the text will temporarily attach to the screen center instead", attachModeHeader, "TOPLEFT", "BOTTOMLEFT", 0, -16, DefaultConfig.attachModeFallback, "Config.attachModeFallback")
-local overlapCheckbox = ConfigPanel:CreateCheckbox("Prevent Text Overlap", "Prevents damage text frames from overlapping each other", fallbackCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, 0, DefaultConfig.preventOverlap, "Config.preventOverlap")
-local areaSliderX = ConfigPanel:CreateSlider("Text Area X Offset (screen only)", "Horizontal offset of animation area", overlapCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, -24, -700, 700, 1, DefaultConfig.areaX, "Config.areaX")
-local areaSliderY = ConfigPanel:CreateSlider("Text Area Y Offset (screen only)", "Vertical offset of animation area", areaSliderX, "TOPLEFT", "BOTTOMLEFT", 0, -32, -400, 400, 1, DefaultConfig.areaY, "Config.areaY")
+local fallbackCheckbox = ConfigPanel:CreateCheckbox("Attachment Fallback", "When a nameplate isnt available, the text will temporarily attach to the screen center instead", attachModeDropDown.right, "LEFT", "RIGHT", -10, 0, DefaultConfig.attachModeFallback, "Config.attachModeFallback")
+local overlapCheckbox = ConfigPanel:CreateCheckbox("Prevent Text Overlap", "Prevents damage text frames from overlapping each other", fallbackCheckbox, "LEFT", "RIGHT", 132, 0, DefaultConfig.preventOverlap, "Config.preventOverlap")
+local areaSliderX = ConfigPanel:CreateSlider("Screen Center Text X Offset", "Horizontal offset of animation area", attachModeHeader, "TOPLEFT", "BOTTOMLEFT", 0, -28, -700, 700, 1, DefaultConfig.areaX, "Config.areaX")
+local areaSliderY = ConfigPanel:CreateSlider("Screen Center Text Y Offset", "Vertical offset of animation area", areaSliderX, "LEFT", "RIGHT", 16, 0, -400, 400, 1, DefaultConfig.areaY, "Config.areaY")
+local areaSliderNX = ConfigPanel:CreateSlider("Nameplate Text X Offset", "Horizontal offset of animation area", areaSliderX, "TOPLEFT", "BOTTOMLEFT", 0, -28, -400, 400, 1, DefaultConfig.areaNX, "Config.areaNX")
+local areaSliderNY = ConfigPanel:CreateSlider("Nameplate Text X Offset", "Vertical offset of animation area", areaSliderNX, "LEFT", "RIGHT", 16, 0, -400, 400, 1, DefaultConfig.areaNY, "Config.areaNY")
 
-local textFormatOptionsHeader = ConfigPanel:CreateHeader("Text Formatting", "GameFontNormalLarge", areaSliderY, "TOPLEFT", "BOTTOMLEFT", 0, -32)
-local abbrevCheckbox = ConfigPanel:CreateCheckbox("Abbreviate Large Numbers", "Abbreviate large numbers (ex.1K)", textFormatOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 0, -8, DefaultConfig.abbreviateNumbers, "Config.abbreviateNumbers")
+local textFormatOptionsHeader = ConfigPanel:CreateHeader("Number Formatting Options", "GameFontNormalLarge", textPosOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 0, -164)
+local abbrevCheckbox = ConfigPanel:CreateCheckbox("Abbreviate Large Numbers", "Abbreviate large numbers (ex.1K)", textFormatOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 20, -8, DefaultConfig.abbreviateNumbers, "Config.abbreviateNumbers")
 local kiloSepCheckbox = ConfigPanel:CreateCheckbox("Add Thousands Separator", "Add thousands separator (ex.100,000,000)", abbrevCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, 0, DefaultConfig.kiloSeparator, "Config.kiloSeparator")
 
-local colorTableFrame = ConfigPanel:CreateChildFrame("TOPLEFT", "TOPRIGHT", animDurationSlider, 20, 10, 300, 340)
-local colorTableHeader = colorTableFrame:CreateHeader("Damage Type Colors", "GameFontHighlightMedium", colorTableFrame, "TOP", "TOP", 0, 0)
+local filteringOptionsHeader = ConfigPanel:CreateHeader("Filtering Options", "GameFontNormalLarge", textFormatOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 0, -64)
+local absoluteFilterCheckbox = ConfigPanel:CreateCheckbox("Hide Below Absolute Threshold", "Hide numbers smaller than an absolute value", filteringOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 20, -8, DefaultConfig.filterAbsoluteEnabled, "Config.filterAbsoluteEnabled")
+local absoluteThresholdSlider = ConfigPanel:CreateSlider("Absolute Threshold", "Absolute Value", absoluteFilterCheckbox, "LEFT", "RIGHT", 256, 0, 0, 10000, 1, DefaultConfig.filterAbsoluteThreshold, "Config.filterAbsoluteThreshold")
+local relativeFilterCheckbox = ConfigPanel:CreateCheckbox("Hide Below Relative Threshold", "Hide numbers smaller than a percentage of player health", absoluteFilterCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, -20, DefaultConfig.filterRelativeEnabled, "Config.filterRelativeEnabled")
+local relativeThresholdSlider = ConfigPanel:CreateSlider("% of Max Player Health", "Percentage of Max Player Health", relativeFilterCheckbox, "LEFT", "RIGHT", 256, 0, 0, 100, 0.1, DefaultConfig.filterRelativeThreshold, "Config.filterRelativeThreshold")
+local relativeThresholdTimer = 0
+relativeThresholdSlider:HookScript("OnUpdate", function(self)
+    if not self:IsShown() then return end
+    local now = GetTime()
+    if ((now - relativeThresholdTimer) > 0.1) then
+        getglobal(self:GetName() .. 'Text'):SetText("% of Max Player Health ("..tostring(floor(CFCT:UnitHealthMax('player') * 0.01 * CFCT.Config.filterRelativeThreshold))..")")
+        relativeThresholdTimer = now
+    end
+end)
+local averageFilterCheckbox = ConfigPanel:CreateCheckbox("Hide Below Average Threshold", "Hide numbers smaller than a percentage of average damage", relativeFilterCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, -20, DefaultConfig.filterAverageEnabled, "Config.filterAverageEnabled")
+local averageThresholdSlider = ConfigPanel:CreateSlider("% of Average Damage/Healing", "Percentage of Average Damage/Healing", averageFilterCheckbox, "LEFT", "RIGHT", 256, 0, 0, 200, 0.1, DefaultConfig.filterAverageThreshold, "Config.filterAverageThreshold")
+local averageThresholdTimer = 0
+averageThresholdSlider:HookScript("OnUpdate", function(self)
+    if not self:IsShown() then return end
+    local now = GetTime()
+    if ((now - averageThresholdTimer) > 0.1) then
+        getglobal(self:GetName() .. 'Text'):SetText("% of Average Damage/Healing ("..tostring(floor(CFCT:DamageRollingAverage() * 0.01 * CFCT.Config.filterAverageThreshold))..")")
+        averageThresholdTimer = now
+    end
+end)
+
+local sortingOptionsHeader = ConfigPanel:CreateHeader("Sorting Options", "GameFontNormalLarge", filteringOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 0, -128)
+local sortByDamageCheckbox = ConfigPanel:CreateCheckbox("Sort By Damage/Healing in Descending Order", "Sort events by amount", sortingOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 20, -8, DefaultConfig.sortByDamage, "Config.sortByDamage")
+
+local merginOptionsHeader = ConfigPanel:CreateHeader("Merging Options", "GameFontNormalLarge", sortingOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 0, -40)
+local mergingEnabledCheckbox = ConfigPanel:CreateCheckbox("Merge Events", "Combine damage/healings events with the same spellid into one event", merginOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 20, -8, DefaultConfig.mergeEvents, "Config.mergeEvents")
+local mergingIntervalSlider = ConfigPanel:CreateSlider("Max Interval", "Max time interval between events for a merge to happen (in seconds)", mergingEnabledCheckbox, "LEFT", "RIGHT", 256, 0, 0.01, 5, 0.01, DefaultConfig.mergeEventsInterval, "Config.mergeEventsInterval")
+local mergingCountCheckbox = ConfigPanel:CreateCheckbox("Show Merge Count", "Add number of merged events next to the damage/healing (ex '1337 x5')", mergingEnabledCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, 0, DefaultConfig.mergeEventsCounter, "Config.mergeEventsCounter")
+
+local colorTableFrame = ConfigPanel:CreateChildFrame("TOPLEFT", "BOTTOMLEFT", merginOptionsHeader, 0, -64, 300, 340)
+local colorTableHeader = colorTableFrame:CreateHeader("Damage Type Colors", "GameFontNormalLarge", colorTableFrame, "TOPLEFT", "TOPLEFT", 0, 0)
 local colorTableX, colorTableY, colorTableCounter = 20, 0, 0
 
 for k,v in pairs(SCHOOL_NAMES) do
     colorTableCounter = colorTableCounter + 1
-    if (colorTableY < -300) then
+    if (colorTableY < -150) then
         colorTableX = colorTableX + 150
         colorTableY = 0
     end
