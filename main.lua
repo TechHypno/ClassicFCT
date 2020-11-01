@@ -838,6 +838,13 @@ f:Show()
 function f:ADDON_LOADED(name)
     if (name == addonName) then
         CFCT.Config:OnLoad()
+        local version = GetAddOnMetadata(addonName, "Version")
+        if (version ~= CFCT.lastVersion) then
+            C_Timer.After(5,function()
+                CFCT:Log(GetAddOnMetadata(addonName, "Version").."\nNew in this version:\n    - Damage/Healing numbers filtering, sorting, merging")
+            end)
+        end
+        CFCT.lastVersion = version
     end
 end
 
@@ -848,9 +855,6 @@ end
 local playerGUID
 function f:PLAYER_ENTERING_WORLD()
     playerGUID = UnitGUID("player")
-    C_Timer.After(5,function()
-        CFCT:Log(GetAddOnMetadata(addonName, "Version").."\nNew in this version:\n    - Damage/Healing numbers filtering, sorting, merging")
-    end)
 end
 
 local nameplates = {}

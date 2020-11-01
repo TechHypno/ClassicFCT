@@ -962,6 +962,7 @@ local DefaultVars = {
     enabled = true,
     hideBlizz = true,
     selectedPreset = "",
+    lastVersion = ""
 }
 local AnimationDefaults = {
     Pow = {
