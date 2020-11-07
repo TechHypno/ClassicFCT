@@ -13,7 +13,9 @@ Text display area can be positioned in 3 ways:
 - to screen center (with x, y offsets)
 - to the target nameplate
 - to every individual nameplate (anti-overlap doesnt work in this mode courtesy of Blizzard)
-- if no nameplate is available (in case the target dies or moves off-screen), text display area can fall back to screen center.
+
+If no nameplate is available (in case the target dies or moves off-screen), text display area can fall back to screen center.
+Text can be displayed behind or in front of nameplates and their children.
 
 Animations:
 - Fade In, Fade Out
