@@ -10,6 +10,8 @@ local DefaultPresets = {
         areaNX = 0,
         areaNY = 0,
         textStrata = "MEDIUM",
+        dontOverlapNameplates = false,
+        inheritNameplates = false,
         preventOverlap = true,
         attachMode = "tn",
         attachModeFallback = true,
@@ -487,6 +489,8 @@ local DefaultPresets = {
         areaNX = 0,
         areaNY = 0,
         textStrata = "MEDIUM",
+        dontOverlapNameplates = false,
+        inheritNameplates = false,
         preventOverlap = true,
         attachMode = "tn",
         attachModeFallback = true,
@@ -1204,6 +1208,10 @@ CFCT.Config = {
 SLASH_CLASSICFCT1 = '/cfct'
 SlashCmdList['CLASSICFCT'] = function(msg)
     CFCT.Config:Show()
+end
+SLASH_CLASSICFCTFS1 = '/fs'
+SlashCmdList['CLASSICFCTFS'] = function(msg)
+    FrameStackTooltip_Toggle(0, 0, 0);
 end
 
 function CFCT.Color2RGBA(color)
@@ -2129,8 +2137,14 @@ local animDurationSlider = ConfigPanel:CreateSlider("Animation Duration", "Anima
 local textPosOptionsHeader = ConfigPanel:CreateHeader("Text Position Options", "GameFontNormalLarge", headerGeneralSettings, "TOPLEFT", "BOTTOMLEFT", 0, -64)
 local textStrataHeader = ConfigPanel:CreateHeader("Text Strata", "GameFontHighlightSmall", textPosOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 20, -16)
 local textStrataDropDown = ConfigPanel:CreateDropDownMenu("Text Strata", "", textStrataHeader, "LEFT", "LEFT", 64, -3, TextStrataMenu, "Config.textStrata")
+textStrataDropDown.middle:SetWidth(110)
+local dontOverlapNameplates = ConfigPanel:CreateCheckbox("Nameplates In Front", "Show text behind the nameplates", textStrataDropDown.right, "LEFT", "RIGHT", -10, 0, DefaultConfig.dontOverlapNameplates, "Config.dontOverlapNameplates")
+local inheritNameplates = ConfigPanel:CreateCheckbox("Inherit From Nameplates", "Text inherits some atributes from nameplates, like visibility and scale", dontOverlapNameplates, "LEFT", "RIGHT", 132, 0, DefaultConfig.inheritNameplates, "Config.inheritNameplates")
+
+
 local attachModeHeader = ConfigPanel:CreateHeader("Attach Text To", "GameFontHighlightSmall", textPosOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 20, -48)
 local attachModeDropDown = ConfigPanel:CreateDropDownMenu("Attach Mode", "", attachModeHeader, "LEFT", "LEFT", 64, -3, AttachModesMenu, "Config.attachMode")
+attachModeDropDown.middle:SetWidth(110)
 
 local fallbackCheckbox = ConfigPanel:CreateCheckbox("Attachment Fallback", "When a nameplate isnt available, the text will temporarily attach to the screen center instead", attachModeDropDown.right, "LEFT", "RIGHT", -10, 0, DefaultConfig.attachModeFallback, "Config.attachModeFallback")
 local overlapCheckbox = ConfigPanel:CreateCheckbox("Prevent Text Overlap", "Prevents damage text frames from overlapping each other", fallbackCheckbox, "LEFT", "RIGHT", 132, 0, DefaultConfig.preventOverlap, "Config.preventOverlap")

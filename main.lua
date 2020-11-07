@@ -7,8 +7,8 @@ local AbbreviateNumbers = AbbreviateNumbers
 local GetTime = GetTime
 
 CFCT.enabled = true
-CFCT.frame = CreateFrame("Frame", "CFCT.frame", UIParent)
-CFCT.animating = {target={}}
+CFCT.frame = CreateFrame("Frame", "ClassicFCT.frame", UIParent)
+CFCT.Animating = {}
 CFCT.fontStringCache = {}
 -- CFCT.Debug = true
 
@@ -17,9 +17,13 @@ local f = CFCT.frame
 f:SetSize(1,1)
 f:SetPoint("CENTER", 0, 0)
 
-local animAreas = CFCT.animating
+local anim = CFCT.Animating
 local fsc = CFCT.fontStringCache
 
+function round(n, d)
+    local p = 10^d
+    return math.floor(n * p) / p
+end
 
 local damageRollingAverage = 0
 function CFCT:DamageRollingAverage()
@@ -59,28 +63,30 @@ local function FormatThousandSeparator(v)
     return strsub(s, 1, pos)..gsub(strsub(s, pos+1), "(...)", ",%1")
 end
 
-local function InitFontString(self, state)
+local function InitFont(self, state)
     local fontOptions = state.fontOptions
     self:SetFont(fontOptions.fontPath, fontOptions.fontSize, fontOptions.fontStyle)
     self:SetShadowOffset(fontOptions.fontSize/14, fontOptions.fontSize/14)
     self:SetDrawLayer("OVERLAY")
-    self:SetPoint("BOTTOM", 0, 0)
+    self:SetJustifyH("CENTER")
+    self:SetJustifyV("MIDDLE")
+    -- self:SetPoint("BOTTOM", 0, 0)
     self:SetText(state.text)
     self:SetTextColor(unpack(fontOptions.fontColor))
     self:SetAlpha(fontOptions.fontAlpha)
     self:SetShadowColor(0,0,0,fontOptions.fontAlpha/2)
-    self.initialTime = now
+    state.initialTime = now
+    state.strHeight = self:GetStringHeight()
+    state.strWidth = self:GetStringWidth()
+    state.posX = 0
+    state.posY = 0
+    state.direction = 0
     self.state = state
-    self.state.height = self:GetStringHeight()
-    self.state.width = self:GetStringWidth()
-    self.state.posX = 0
-    self.state.posY = 0
-    self.state.direction = 0
     self:Hide()
     return self
 end
 
-local function ReleaseFontString(self)
+local function ReleaseFont(self)
     self.state = nil
     self:Hide()
     tinsert(fsc, self)
@@ -93,29 +99,6 @@ local function CheckCollision(x1, y1, w1, h1, x2, y2, w2, h2)
         return overlapX, overlapY
     end
 end
-
-local function PushFrames(self, frames)
-    self.state.checkOverlap = false
-    for k, e in ipairs(frames) do
-        if (e ~= self) and e.state.checkOverlap then
-            local overlapX, overlapY = CheckCollision(self.state.posX, self.state.posY, self.state.width, self.state.height, e.state.posX, e.state.posY, e.state.width, e.state.height)
-            if overlapX and overlapY then 
-                if (overlapX and e.state.direction > 1) then
-                    -- e.state.posX = (e.state.posX + (e.state.width / 2)) < (self.state.posX + (self.state.width / 2)) and e.state.posX - overlapX - (0.3 * e.state.height) or e.state.posX + overlapX + (0.3 * e.state.height)
-                    e.state.posX = (e.state.posX + (e.state.width / 2)) < (self.state.posX + (self.state.width / 2)) and e.state.posX - overlapX - e.state.height * 0.5 or e.state.posX + overlapX + e.state.height * 0.5
-                    PushFrames(e, frames)
-                    e.state.direction = 0
-                else
-                    -- e.state.posY = (e.state.posY + (e.state.height / 2)) < (self.state.posY + (self.state.height / 2)) and e.state.posY - overlapY or e.state.posY + overlapY
-                    e.state.posY = (e.state.posY + (e.state.height / 2)) < (self.state.posY + (self.state.height / 2)) and e.state.posY - e.state.height * 0.5 or e.state.posY + e.state.height * 0.5
-                    PushFrames(e, frames)
-                    e.state.direction = e.state.direction + 1
-                end
-            end
-        end
-    end
-end
-
 
 local GRID = {
     false,
@@ -347,7 +330,7 @@ local GRID = {
 
 local gapX = 30
 local gapY = 50
-local function SortFrames(unsortedFrames)
+local function GridLayout(unsortedFrames)
     local frames = {}
     if CFCT.Config.sortByDamage then
         local missPrio = CFCT.Config.sortMissPrio
@@ -386,6 +369,8 @@ local function SortFrames(unsortedFrames)
     --     end
     -- end
     for k, e in ipairs(frames) do
+        -- frame mode
+        -- local gapX, gapY = gapX * e.state.baseScale, gapY * e.state.baseScale
         local gridX = GRID[k] and (GRID[k].x and frames[GRID[k].x.p].state.gridX + GRID[k].x.o * (gapX + frames[GRID[k].x.p].state.width + 0.5*(e.state.width - frames[GRID[k].x.p].state.width))) or 0
         local gridY = GRID[k] and (GRID[k].y and frames[GRID[k].y.p].state.gridY + GRID[k].y.o * (gapY + (GRID[k].y.o < 0 and e.state.height or frames[GRID[k].y.p].state.height))) or 0
         if GRID[k] or k == 1 then
@@ -416,23 +401,22 @@ end
 local ANIMATIONS = {
     Pow = function(self, catConfig, animConfig)
         local duration = animConfig.duration * CFCT.Config.animDuration
-        local midTime = self.initialTime + (duration * animConfig.inOutRatio)
+        local midTime = self.state.initialTime + (duration * animConfig.inOutRatio)
         if (now < midTime) then
-            self:SetTextHeight(catConfig.fontSize * AnimateLinearAbsolute(self.initialTime, midTime - self.initialTime, animConfig.initScale, animConfig.midScale))
+            self.state.powScale = AnimateLinearAbsolute(self.state.initialTime, midTime - self.state.initialTime, animConfig.initScale, animConfig.midScale)
+            -- self:SetTextHeight(catConfig.fontSize * AnimateLinearAbsolute(self.state.initialTime, midTime - self.state.initialTime, animConfig.initScale, animConfig.midScale))
         else
-            self:SetTextHeight(catConfig.fontSize * AnimateLinearAbsolute(midTime, duration * (1 - animConfig.inOutRatio), animConfig.midScale, animConfig.endScale))
+            self.state.powScale = AnimateLinearAbsolute(midTime, duration * (1 - animConfig.inOutRatio), animConfig.midScale, animConfig.endScale)
+            -- self:SetTextHeight(catConfig.fontSize * AnimateLinearAbsolute(midTime, duration * (1 - animConfig.inOutRatio), animConfig.midScale, animConfig.endScale))
         end
     end,
     FadeIn = function(self, catConfig, animConfig)
         local curAlpha = self:GetAlpha()
         local duration = animConfig.duration * CFCT.Config.animDuration
-        local endTime = self.initialTime + duration
+        local endTime = self.state.initialTime + duration
         if (now <= endTime) then
-            local fadeInAlpha = AnimateLinearAbsolute(self.initialTime, duration, 0, self.state.fontOptions.fontAlpha)
-            local avgFadeInOutAlpha = (fadeInAlpha + (self.state.fadeOutAlpha or fadeInAlpha)) * 0.5
-            -- print("FadeIn", avgFadeInOutAlpha)
-            self:SetAlpha(avgFadeInOutAlpha)
-            self:SetShadowColor(0,0,0,avgFadeInOutAlpha/2)
+            local fadeInAlpha = AnimateLinearAbsolute(self.state.initialTime, duration, 0, self.state.fontOptions.fontAlpha)
+            self.state.fadeAlpha = (fadeInAlpha + (self.state.fadeOutAlpha or fadeInAlpha)) * 0.5
             self.state.fadeInAlpha = fadeInAlpha
         else
             self.state.fadeInAlpha = nil
@@ -441,13 +425,10 @@ local ANIMATIONS = {
     FadeOut = function(self, catConfig, animConfig)
         local curAlpha = self:GetAlpha()
         local duration = animConfig.duration
-        local startTime = self.initialTime + CFCT.Config.animDuration - duration
+        local startTime = self.state.initialTime + CFCT.Config.animDuration - duration
         if (now >= startTime) then
             local fadeOutAlpha = AnimateLinearAbsolute(startTime, duration, self.state.fontOptions.fontAlpha, 0)
-            local avgFadeInOutAlpha = (fadeOutAlpha + (self.state.fadeInAlpha or fadeOutAlpha)) * 0.5
-            -- print("FadeOut", avgFadeInOutAlpha)
-            self:SetAlpha(avgFadeInOutAlpha)
-            self:SetShadowColor(0,0,0,avgFadeInOutAlpha/2)
+            self.state.fadeAlpha = (fadeOutAlpha + (self.state.fadeInAlpha or fadeOutAlpha)) * 0.5
             self.state.fadeOutAlpha = fadeOutAlpha
         else
             self.state.fadeOutAlpha = nil
@@ -463,17 +444,17 @@ local ANIMATIONS = {
                 local rx, ry = cos(a), sin(a)
                 self.state.randomX, self.state.randomY =  rx * dist, ry * dist
             end
-            scrollX = AnimateLinearAbsolute(self.initialTime, duration, 0, self.state.randomX)
-            scrollY = AnimateLinearAbsolute(self.initialTime, duration, 0, self.state.randomY)
+            scrollX = AnimateLinearAbsolute(self.state.initialTime, duration, 0, self.state.randomX)
+            scrollY = AnimateLinearAbsolute(self.state.initialTime, duration, 0, self.state.randomY)
         elseif dir:find("RIGHT") then
-            scrollX = AnimateLinearAbsolute(self.initialTime, duration, 0, dist)
+            scrollX = AnimateLinearAbsolute(self.state.initialTime, duration, 0, dist)
         elseif dir:find("LEFT") then
-            scrollX = AnimateLinearAbsolute(self.initialTime, duration, 0, -dist)
+            scrollX = AnimateLinearAbsolute(self.state.initialTime, duration, 0, -dist)
         end
         if dir:find("UP") then
-            scrollY = AnimateLinearAbsolute(self.initialTime, duration, 0, dist)
+            scrollY = AnimateLinearAbsolute(self.state.initialTime, duration, 0, dist)
         elseif dir:find("DOWN") then
-            scrollY = AnimateLinearAbsolute(self.initialTime, duration, 0, -dist)
+            scrollY = AnimateLinearAbsolute(self.state.initialTime, duration, 0, -dist)
         end
         -- substract old scroll pos and add new scroll pos
         self.state.posX = self.state.posX + scrollX - (self.state.scrollX or 0)
@@ -487,53 +468,119 @@ local ANIMATIONS = {
 
 }
 
-local function UpdateFontString(self, elapsed)
+local UIParent = UIParent
+local WorldFrame = WorldFrame
+local GetNamePlateForUnit = C_NamePlate.GetNamePlateForUnit
+local function UpdateFontParent(self)
     local fctConfig = CFCT.Config
-    if ((now - self.initialTime) > fctConfig.animDuration) then
-        return true
+    local nameplate = UnitExists(self.state.unit) and GetNamePlateForUnit(self.state.unit) or false
+    local attach
+    if ((fctConfig.attachMode == "tn") or (fctConfig.attachMode == "en")) and nameplate then
+        attach = nameplate
+    elseif (fctConfig.attachMode == "sc") or (fctConfig.attachModeFallback == true) then
+        attach = f
+    else
+        attach = false
+    end
+    local inheritNameplates = fctConfig.inheritNameplates
+    if fctConfig.dontOverlapNameplates then
+        self:SetParent(WorldFrame)
+        self.state.baseScale = inheritNameplates and (attach == nameplate) and attach:GetEffectiveScale() * UIParent:GetScale() or UIParent:GetScale()
+    else
+        self:SetParent(UIParent)
+        self.state.baseScale = inheritNameplates and (attach == nameplate) and attach:GetEffectiveScale() or 1
+    end
+    self.state.attach = attach
+end
+
+local function CalculateStringSize(self)
+    -- frame mode
+    -- self.state.height = self.state.strHeight * self.state.baseScale * self.state.powScale
+    -- self.state.width = self.state.strWidth * self.state.baseScale * self.state.powScale
+    self.state.height = self.state.strHeight * self.state.powScale
+    self.state.width = self.state.strWidth * self.state.powScale
+end
+
+local function ValidateFont(self)
+    local fctConfig = CFCT.Config
+    if ((now - self.state.initialTime) > fctConfig.animDuration) then
+        return false
     end
     local catConfig = fctConfig[self.state.cat]
     if not (catConfig and catConfig.enabled) then
-        return true
+        return false
     end
-    self.state.height = self:GetStringHeight()
-    self.state.width = self:GetStringWidth()
+    self.state.catConfig = catConfig
+    return true
+end
+
+local function UpdateFontAnimations(self)
+    local catConfig = self.state.catConfig
+    CalculateStringSize(self)
     for animName, animFunc in pairs(ANIMATIONS) do
         local animConfig = catConfig[animName]
         if (animConfig and (type(animConfig) == 'table')) and animConfig.enabled then
-            if animFunc(self, catConfig, animConfig) then
-                return true
-            end
+            animFunc(self, catConfig, animConfig)
         end
     end
-    self.state.height = self:GetStringHeight()
-    self.state.width = self:GetStringWidth()
+    CalculateStringSize(self)
+    -- self:SetText(format("%04d",self.state.width))
+    -- print(self:GetParent():GetName(), round(self.state.strWidth,2), round(self.state.baseScale,2), round(self.state.width,2))
 end
+
 
 local function UpdateFontPos(self)
     local fctConfig = CFCT.Config
-    local nameplate = UnitExists(self.state.unit) and C_NamePlate.GetNamePlateForUnit(self.state.unit)
-    if ((fctConfig.attachMode == "tn") or (fctConfig.attachMode == "en")) and nameplate then
-        self:SetPoint("BOTTOM", nameplate.UnitFrame, "CENTER", fctConfig.areaNX + self.state.posX, fctConfig.areaNY + self.state.posY)
-        self:Show()
-    elseif (fctConfig.attachMode == "sc") or (fctConfig.attachModeFallback == true) then
-        self:SetPoint("BOTTOM", f, "CENTER", fctConfig.areaX + self.state.posX, fctConfig.areaY + self.state.posY)
+    local attach = self.state.attach
+    if attach then
+        local isNamePlate = attach.namePlateUnitToken ~= nil
+        local areaX = isNamePlate and fctConfig.areaNX or fctConfig.areaX
+        local areaY = isNamePlate and fctConfig.areaNY or fctConfig.areaY
+        if fctConfig.perspectiveScale then
+            self:SetPoint("CENTER", attach, "CENTER", areaX + self.state.posX, areaY + self.state.posY)
+        else
+            -- local scaleFactor = 1 / (self.state.baseScale * self.state.powScale)
+            local scaleFactor = 1 / self.state.powScale
+            self:SetPoint("CENTER", attach, "CENTER", (areaX + self.state.posX) * scaleFactor, (areaY + self.state.posY) * scaleFactor)
+        end
+        -- self:SetFrameStrata(fctConfig.textStrata or "MEDIUM")
         self:Show()
     else
         self:Hide()
     end
 end
 
+local function ApplyFontUpdate(self)
+    local alpha = self.state.baseAlpha * self.state.fadeAlpha
+    local scale = self.state.baseScale * self.state.powScale
+    -- local scale = self.state.powScale
+    self:SetAlpha(alpha)
+    self:SetShadowColor(0, 0, 0, alpha / 2)
+    -- if CFCT.Config.perspectiveScale then
+        self:SetScale(scale)
+    -- else
+        -- self.font:SetScale(scale)
+    -- end
+end
+
+
+
+
+
+
 local function GrabFontString()
     if (#fsc > 0) then return tremove(fsc) end
-    local fontString = f:CreateFontString()
+    local frame = f:CreateFontString()
 
-    fontString.Init = InitFontString
-    fontString.UpdateAnimation = UpdateFontString
-    fontString.UpdatePosition = UpdateFontPos
-    fontString.Release = ReleaseFontString
+    frame.Init = InitFont
+    frame.UpdateParent = UpdateFontParent
+    frame.UpdateAnimation = UpdateFontAnimations
+    frame.UpdatePosition = UpdateFontPos
+    frame.Validate = ValidateFont
+    frame.Release = ReleaseFont
+    frame.ApplyUpdate = ApplyFontUpdate
 
-    return fontString
+    return frame
 end
 
 
@@ -547,13 +594,12 @@ local function GetTypeColor(school)
 end
 
 
-local function DispatchText(unit, event, value, spellid, crit, miss, pet, school, count)
+local function DispatchText(guid, event, value, spellid, crit, miss, pet, school, count)
     local cat = (pet and "pet" or "")..event..(crit and "crit" or miss and "miss" or "")
     local fctConfig = CFCT.Config
     local catConfig = fctConfig[cat]
     local text = value
-
-    local unit = (fctConfig.attachMode == "en") and unit or "target"
+    -- TODO put fctConfig and catConfig into state
 
     count = count or 1
     if (not miss) then
@@ -594,12 +640,16 @@ local function DispatchText(unit, event, value, spellid, crit, miss, pet, school
         fontAlpha = a
     end
 
-    tinsert(animAreas[unit], 1, GrabFontString():Init({
+    tinsert(anim, 1, GrabFontString():Init({
         cat = cat,
-        unit = unit,
+        guid = guid,
         icon = icon,
         text = text,
         value = value,
+        baseAlpha = 1,
+        baseScale = 1,
+        fadeAlpha = 1,
+        powScale = 1,
         fontOptions = {
             fontPath = catConfig.fontPath,
             fontSize = catConfig.fontSize,
@@ -616,7 +666,7 @@ end
 
 local eventCache = {}
 CFCT.eventCache = eventCache
-local function CacheEvent(unit, event, text, spellid, crit, miss, pet, school)
+local function CacheEvent(guid, event, text, spellid, crit, miss, pet, school)
     local id = tostring(pet)..tostring(spellid)..tostring(school)
     local mergeTime = CFCT.Config.mergeEventsInterval
     local now = GetTime()
@@ -626,7 +676,7 @@ local function CacheEvent(unit, event, text, spellid, crit, miss, pet, school)
     }
     tinsert(record.events, {
         time = now,
-        unit = unit,
+        guid = guid,
         event = event,
         text = text,
         spellid = spellid,
@@ -641,6 +691,7 @@ local function CacheEvent(unit, event, text, spellid, crit, miss, pet, school)
 end
 
 local function ProcessCachedEvents()
+    -- TODO add options to only merge from same guid
     local mergingEnabled = CFCT.Config.mergeEvents
     for id,record in pairs(eventCache) do
         if mergingEnabled then
@@ -648,7 +699,7 @@ local function ProcessCachedEvents()
                 local merge
                 for _,e in ipairs(record.events) do
                     if e.miss then
-                        DispatchText(e.unit, e.event, e.text, e.spellid, e.crit, e.miss, e.pet, e.school)
+                        DispatchText(e.guid, e.event, e.text, e.spellid, e.crit, e.miss, e.pet, e.school)
                     elseif not merge then
                         merge = e
                     else
@@ -658,13 +709,13 @@ local function ProcessCachedEvents()
                     end
                 end
                 if merge then
-                    DispatchText(merge.unit, merge.event, merge.text, merge.spellid, merge.crit, merge.miss, merge.pet, merge.school, merge.count)
+                    DispatchText(merge.guid, merge.event, merge.text, merge.spellid, merge.crit, merge.miss, merge.pet, merge.school, merge.count)
                 end
                 eventCache[id] = nil
             end
         else
             for _,e in ipairs(record.events) do
-                DispatchText(e.unit, e.event, e.text, e.spellid, e.crit, e.miss, e.pet, e.school)
+                DispatchText(e.guid, e.event, e.text, e.spellid, e.crit, e.miss, e.pet, e.school)
             end
             eventCache[id] = nil
         end
@@ -676,61 +727,6 @@ end
 CFCT._testMode = false
 local testModeTimer = 0
 function CFCT:Test(n)
-    -- for i = 1, n do
-    --     local fontString = GrabFontString()
-    --     fontString:Init("|T"..select(3,GetSpellInfo(1))..":0|t"..i.."1234", "white")
-    --     fontString.state.cat = "white"
-    --     fontString.dragFrame = CreateFrame("frame", "CFCT.TestFrames["..#CFCT.TestFrames+i.."]", f)
-    --     fontString.dragFrame:SetFrameStrata("DIALOG")
-    --     fontString.dragFrame:SetSize(fontString.state.width, fontString.state.height)
-    --     fontString.dragFrame:SetPoint("CENTER", f, "CENTER", 0, 0)
-    --     fontString.dragFrame:SetBackdrop({bgFile="Interface/CharacterFrame/UI-Party-Background", tile=true, tileSize=32, insets={left=0, right=0, top=0, bottom=0}})
-    --     fontString.dragFrame:SetAlpha(0.3)
-    --     fontString.dragFrame:SetMovable(true)
-    --     fontString.dragFrame:SetScript("OnMouseDown", function(self, btn)
-    --         self:StartMoving()
-    --         self:SetScript("OnUpdate", function(self, elapsed)
-    --             local x, y = self:GetCenter()
-    --             local fx, fy = f:GetCenter()
-    --             fontString.state.posX = x - fx
-    --             fontString.state.posY = y - fy
-    --             fontString:SetPoint("CENTER", f, "CENTER", fontString.state.posX, fontString.state.posY)
-    --             PushFrames(fontString, CFCT.TestFrames)
-    --             for _, e in pairs(CFCT.TestFrames) do
-    --                 if (e ~= fontString) then
-    --                     e:SetPoint("CENTER", f, "CENTER", e.state.posX, e.state.posY)
-    --                     e.dragFrame:SetPoint("CENTER", f, "CENTER", e.state.posX, e.state.posY)
-    --                 end
-    --             end
-    --         end)
-    --     end)
-    --     fontString.dragFrame:SetScript("OnMouseUp", function(self, btn)
-    --         self:StopMovingOrSizing()
-    --         self:SetScript("OnUpdate", nil)
-    --     end)
-    --     fontString.dragFrame:EnableMouse(true)
-    --     tinsert(CFCT.TestFrames, fontString)
-    -- end
-    -- local cats = {
-    --     "auto",
-    --     "automiss",
-    --     "autocrit",
-    --     "petauto",
-    --     "petautomiss",
-    --     "petautocrit",
-    --     "spell",
-    --     "spellmiss",
-    --     "spellcrit",
-    --     "petspell",
-    --     "petspellmiss",
-    --     "petspellcrit",
-    --     "heal",
-    --     "healmiss",
-    --     "healcrit",
-    --     "petheal",
-    --     "pethealmiss",
-    --     "pethealcrit"
-    -- }
     local cats = {
         "auto",
         "spell",
@@ -754,8 +750,8 @@ function CFCT:Test(n)
         if crit and miss then
             print(amount, crit, miss)
         end
-        local unit = (numplates > 0) and nameplates[random(1,numplates)].UnitFrame.unit or "target"
-        DispatchText(unit, event, amount, spellid, crit, miss, pet, school)
+        local guid = (numplates > 0) and UnitGUID(nameplates[random(1,numplates)].UnitFrame.unit) or UnitGUID("target")
+        DispatchText(guid, event, amount, spellid, crit, miss, pet, school)
     end
 end
 
@@ -771,14 +767,6 @@ end
 
 
 
-
-
-
-
-
-
-
-
 local events = {
     COMBAT_LOG_EVENT_UNFILTERED = true,
     UNIT_MAXHEALTH = true,
@@ -791,6 +779,51 @@ local events = {
 for e,_ in pairs(events) do f:RegisterEvent(e) end
 f:SetScript("OnEvent", function(self, event, ...) self[event](self, ...) end)
 
+local function SortByUnit(allFrames)
+    local fctConfig = CFCT.Config
+    local animAreas = {target={}}
+    for k, frame in ipairs(allFrames) do
+        local state = frame.state
+        if (fctConfig.attachMode == "en") then
+            state.unit = CFCT:GetNamePlateUnitByGUID(state.guid) or ""
+        else
+            state.unit = "target"
+        end
+        animAreas[state.unit] = animAreas[state.unit] or {}
+        tinsert(animAreas[state.unit], frame)
+    end
+    return animAreas
+end
+
+local function PrepareAnimatingFonts()
+    for k, frame in ipairs(anim) do
+        if not frame:Validate() then
+            tremove(anim, k)
+            frame:Release()
+        end
+    end
+end
+
+local function UpdateAnimatingFonts()
+    local animAreas = SortByUnit(anim)
+    for k, animArea in pairs(animAreas) do
+        for k, frame in ipairs(animArea) do
+            frame:UpdateParent(animArea)
+            frame:UpdateAnimation(k, elapsed)
+        end
+        if CFCT.Config.preventOverlap then
+            GridLayout(animArea)
+        end
+        for _, e in pairs(animArea) do
+            e:UpdatePosition()
+            e:ApplyUpdate()
+        end
+        if (now > cvarTimer) then
+            checkCvars()
+            cvarTimer = now + CVAR_CHECK_INTERVAL
+        end
+    end
+end
 
 f:SetScript("OnUpdate", function(self, elapsed)
     now = GetTime()
@@ -803,34 +836,8 @@ f:SetScript("OnUpdate", function(self, elapsed)
         rollingAverageTimer = now + ROLLINGAVERAGE_UPDATE_INTERVAL
     end
     ProcessCachedEvents()
-    for k, animArea in pairs(animAreas) do
-        for k, fontString in ipairs(animArea) do
-            if fontString:UpdateAnimation(k, elapsed) then
-                fontString:Release()
-                tremove(animArea, k)
-            else
-                fontString.state.checkOverlap = true
-            end
-        end
-        if CFCT.Config.preventOverlap then
-            local frames = SortFrames(animArea)
-            -- if CFCT.Debug and (k == "target") then
-            --     print("---frames---")
-            --     for k,v in ipairs(frames) do
-            --         print(v:GetText(),v.state.width,v.state.height,v.state.gridX,v.state.gridY)
-            --     end
-            --     print("---------------")
-            -- end
-        end
-        for _, e in pairs(animArea) do
-            e:UpdatePosition()
-        end
-        if (now > cvarTimer) then
-            self:SetFrameStrata(CFCT.Config.textStrata or "MEDIUM")
-            checkCvars()
-            cvarTimer = now + CVAR_CHECK_INTERVAL
-        end
-    end
+    PrepareAnimatingFonts()
+    UpdateAnimatingFonts()
 end)
 f:Show()
 
@@ -856,7 +863,6 @@ end
 local nameplates = {}
 function f:NAME_PLATE_UNIT_ADDED(unit)
     local guid = UnitGUID(unit)
-    animAreas[unit] = animAreas[unit] or {}
     nameplates[unit] = guid
     nameplates[guid] = unit 
 end
@@ -864,6 +870,9 @@ function f:NAME_PLATE_UNIT_REMOVED(unit)
     local guid = nameplates[unit]
     nameplates[unit] = nil
     nameplates[guid] = nil
+end
+function CFCT:GetNamePlateUnitByGUID(guid)
+    return nameplates[guid]
 end
 
 local unitHealthMax = {}
@@ -955,31 +964,32 @@ function f:COMBAT_LOG_EVENT_UNFILTERED()
     if not playerEvent then petEvent = (bitband(sourceFlags, COMBATLOG_OBJECT_TYPE_GUARDIAN) > 0 or bitband(sourceFlags, COMBATLOG_OBJECT_TYPE_PET) > 0) and (bitband(sourceFlags, COMBATLOG_OBJECT_AFFILIATION_MINE) > 0) end
     if not (playerEvent or petEvent) then return end
     if (destGUID == playerGUID) then return end
-    local unit = nameplates[destGUID]
+    -- local unit = nameplates[destGUID]
+    local guid = destGUID
 
     if CLEU_DAMAGE_EVENT[cleuEvent] then
         if CLEU_SWING_EVENT[cleuEvent] then
             local amount,overkill,school,resist,block,absorb,crit = arg12,arg13,arg14,arg15,arg16,arg17,arg18
-            self:DamageEvent(unit, nil, amount, crit, petEvent, school)
+            self:DamageEvent(guid, nil, amount, crit, petEvent, school)
         else --its a SPELL event
             local spellid,spellname,school1,amount,overkill,school2,resist,block,absorb,crit = arg12,arg13,arg14,arg15,arg16,arg17,arg18,arg19,arg20,arg21
-            self:DamageEvent(unit, spellid, amount, crit, petEvent, school1)
+            self:DamageEvent(guid, spellid, amount, crit, petEvent, school1)
         end
     elseif CLEU_MISS_EVENT[cleuEvent] then
         if CLEU_SWING_EVENT[cleuEvent] then
             local misstype,_,amount = arg12,arg13,arg14
-            self:MissEvent(unit, nil, amount, misstype, petEvent, SCHOOL_MASK_PHYSICAL)
+            self:MissEvent(guid, nil, amount, misstype, petEvent, SCHOOL_MASK_PHYSICAL)
         else --its a SPELL event
             local spellid,spellname,school1,misstype,_,amount = arg12,arg13,arg14,arg15,arg16,arg17
-            self:MissEvent(unit, spellid, amount, misstype, petEvent, school1)
+            self:MissEvent(guid, spellid, amount, misstype, petEvent, school1)
         end
     elseif CLEU_HEALING_EVENT[cleuEvent] then
         if CLEU_SWING_EVENT[cleuEvent] then
             local amount,overheal,absorb,crit = arg12,arg13,arg14,arg15
-            self:HealingEvent(unit, nil, amount, crit, petEvent, nil)
+            self:HealingEvent(guid, nil, amount, crit, petEvent, nil)
         else --its a SPELL event
             local spellid,spellname,school1,amount,overheal,absorb,crit = arg12,arg13,arg14,arg15,arg16,arg17,arg18
-            self:HealingEvent(unit, spellid, amount, crit, petEvent, school1)
+            self:HealingEvent(guid, spellid, amount, crit, petEvent, school1)
         end
     end
 end
@@ -987,19 +997,19 @@ end
 
 
 
-function f:DamageEvent(unit, spellid, amount, crit, pet, school)
+function f:DamageEvent(guid, spellid, amount, crit, pet, school)
     if (spellid == 75) then spellid = nil end -- 75 = autoshot
     local event = spellid and "spell" or "auto"
-    CacheEvent(unit, event, amount, spellid, crit, false, pet, school)
+    CacheEvent(guid, event, amount, spellid, crit, false, pet, school)
 end
-function f:MissEvent(unit, spellid, amount, misstype, pet, school)
+function f:MissEvent(guid, spellid, amount, misstype, pet, school)
     if (spellid == 75) then spellid = nil end -- 75 = autoshot
     local event = spellid and "spell" or "auto"
-    CacheEvent(unit, event, strlower(misstype):gsub("^%l", strupper), spellid, false, true, pet, school)
+    CacheEvent(guid, event, strlower(misstype):gsub("^%l", strupper), spellid, false, true, pet, school)
 end
-function f:HealingEvent(unit, spellid, amount, crit, pet, school)
+function f:HealingEvent(guid, spellid, amount, crit, pet, school)
     local event = "heal"
-    CacheEvent(unit, event, amount, spellid, crit, false, pet, school)
+    CacheEvent(guid, event, amount, spellid, crit, false, pet, school)
 end
 
 
