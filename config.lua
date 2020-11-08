@@ -27,7 +27,12 @@ local DefaultPresets = {
         sortMissPrio = false,
         mergeEvents = false,
         mergeEventsInterval = 0.1,
+        mergeEventsIntervalMode = "last",
         mergeEventsCounter = true,
+        mergeEventsByGuid = false,
+        mergeEventsBySpellID = false,
+        mergeEventsBySpellIcon = true,
+        mergeEventsBySchool = true,
         colorTable = {
             -- Single Schools
             [SCHOOL_MASK_PHYSICAL]			        	= "ffff0000",
@@ -506,7 +511,12 @@ local DefaultPresets = {
         sortMissPrio = false,
         mergeEvents = false,
         mergeEventsInterval = 0.1,
+        mergeEventsIntervalMode = "last",
         mergeEventsCounter = true,
+        mergeEventsByGuid = false,
+        mergeEventsBySpellID = false,
+        mergeEventsBySpellIcon = true,
+        mergeEventsBySchool = true,
         colorTable = {
             -- Single Schools
             [SCHOOL_MASK_PHYSICAL]			        	= "ffff0000",
@@ -1242,6 +1252,16 @@ local AttachModesMenu = {
     {
         text = "Every Nameplate",
         value = "en"
+    }
+}
+local MergeIntervalModeMenu = {
+    {
+        text = "First Event",
+        value = "first"
+    },
+    {
+        text = "Last Event",
+        value = "last"
     }
 }
 
@@ -2218,8 +2238,15 @@ local merginOptionsHeader = ConfigPanel:CreateHeader("Merging Options", "GameFon
 local mergingEnabledCheckbox = ConfigPanel:CreateCheckbox("Merge Events", "Combine damage/healings events with the same spellid into one event", merginOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 20, -8, DefaultConfig.mergeEvents, "Config.mergeEvents")
 local mergingIntervalSlider = ConfigPanel:CreateSlider("Max Interval", "Max time interval between events for a merge to happen (in seconds)", mergingEnabledCheckbox, "LEFT", "RIGHT", 256, 0, 0.01, 5, 0.01, DefaultConfig.mergeEventsInterval, "Config.mergeEventsInterval")
 local mergingCountCheckbox = ConfigPanel:CreateCheckbox("Show Merge Count", "Add number of merged events next to the damage/healing (ex '1337 x5')", mergingEnabledCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, 0, DefaultConfig.mergeEventsCounter, "Config.mergeEventsCounter")
+local intervalModeHeader = ConfigPanel:CreateHeader("Interval Relative To", "GameFontHighlightSmall", mergingCountCheckbox, "LEFT", "RIGHT", 330, -6)
+local intervalModeDropDown = ConfigPanel:CreateDropDownMenu("Interval Relative To", "", intervalModeHeader, "LEFT", "LEFT", 84, -3, MergeIntervalModeMenu, "Config.mergeEventsIntervalMode")
+intervalModeDropDown.middle:SetWidth(80)
+local mergingByGuidCheckbox = ConfigPanel:CreateCheckbox("Separate By Target", "Dont merge damage done to different targets", mergingCountCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, 0, DefaultConfig.mergeEventsByGuid, "Config.mergeEventsByGuid")
+local mergingByIDCheckbox = ConfigPanel:CreateCheckbox("Separate By Spell ID", "Dont merge damage with different spell spellids", mergingByGuidCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, 0, DefaultConfig.mergeEventsBySpellID, "Config.mergeEventsBySpellID")
+local mergingByIconCheckbox = ConfigPanel:CreateCheckbox("Separate By Spell Icon", "Dont merge damage with different icons", mergingByIDCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, 0, DefaultConfig.mergeEventsBySpellIcon, "Config.mergeEventsBySpellIcon")
+local mergingByTypeCheckbox = ConfigPanel:CreateCheckbox("Separate By Damage Type", "Dont merge damage of different types", mergingByIconCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, 0, DefaultConfig.mergeEventsBySchool, "Config.mergeEventsBySchool")
 
-local colorTableFrame = ConfigPanel:CreateChildFrame("TOPLEFT", "BOTTOMLEFT", merginOptionsHeader, 0, -64, 300, 340)
+local colorTableFrame = ConfigPanel:CreateChildFrame("TOPLEFT", "BOTTOMLEFT", merginOptionsHeader, 0, -164, 300, 340)
 local colorTableHeader = colorTableFrame:CreateHeader("Damage Type Colors", "GameFontNormalLarge", colorTableFrame, "TOPLEFT", "TOPLEFT", 0, 0)
 local colorTableX, colorTableY, colorTableCounter = 20, 0, 0
 
