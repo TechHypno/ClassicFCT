@@ -812,10 +812,16 @@ local function SortByUnit(allFrames)
 end
 
 local function PrepareAnimatingFonts()
-    for k, frame in ipairs(anim) do
-        if not frame:Validate() then
-            tremove(anim, k)
+    local c = #anim
+    local i = 1
+    while (i <= c) do
+        local frame = anim[i]
+        if (frame:Validate() == false) then
             frame:Release()
+            tremove(anim, i)
+            c = c - 1
+        else
+            i = i + 1
         end
     end
 end
@@ -825,7 +831,7 @@ local function UpdateAnimatingFonts()
     for k, animArea in pairs(animAreas) do
         for k, frame in ipairs(animArea) do
             frame:UpdateParent(animArea)
-            frame:UpdateAnimation(k, elapsed)
+            frame:UpdateAnimation()
         end
         if CFCT.Config.preventOverlap then
             GridLayout(animArea)
