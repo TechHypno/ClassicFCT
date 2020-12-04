@@ -1,6 +1,7 @@
 
-R0.85   Dec  4, 2020
-    - 
-R0.84   Oct 23, 2020
+R0.85a   Dec  4, 2020
+    - Anti-Overlap number spacing is now customizable in the options
+
+R0.84c   Oct 23, 2020
     - Added event filtering, sorting and merging.
     - Text can now be displayed behind nameplates
