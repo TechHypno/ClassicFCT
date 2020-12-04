@@ -1,7 +1,9 @@
 *
 !*/
 !.gitignore
+!README.md
+!pkgmeta.yaml
+!CHANGELOG.txt
 !*.toc
 !*.xml
 !*.lua
-!*.md

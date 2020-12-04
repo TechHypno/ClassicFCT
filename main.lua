@@ -329,12 +329,13 @@ local GRID = {
 }
 
 
-local gapX = 30
-local gapY = 50
+-- local gapX = 30
+-- local gapY = 50
 local function GridLayout(unsortedFrames)
+    local fctConfig = CFCT.Config
     local frames = {}
-    if CFCT.Config.sortByDamage then
-        local missPrio = CFCT.Config.sortMissPrio
+    if fctConfig.sortByDamage then
+        local missPrio = fctConfig.sortMissPrio
         local tinsert = tinsert
         local count = 0
         for k,v in ipairs(unsortedFrames) do
@@ -369,6 +370,8 @@ local function GridLayout(unsortedFrames)
     --         v:SetText(k .. v.state.text)
     --     end
     -- end
+    local gapX = fctConfig.preventOverlapSpacingX
+    local gapY = fctConfig.preventOverlapSpacingY
     for k, e in ipairs(frames) do
         -- frame mode
         -- local gapX, gapY = gapX * e.state.baseScale, gapY * e.state.baseScale
@@ -761,7 +764,7 @@ function CFCT:Test(n)
         local crit = (random(1,3) == 1)
         local miss = not crit and (random(1,2) == 1)
         local event = cats[random(1,#cats)]
-        local amount = crit and 2674 or miss and "Missed" or 1337
+        local amount = crit and 2674 or miss and "Miss" or 1337
         if crit and miss then
             print(amount, crit, miss)
         end
@@ -918,15 +921,6 @@ end
 
 
 
-
-
-
-
-
-
-
-
-
 local CLEU_SWING_EVENT = {
     SWING_DAMAGE = true,
     SWING_HEAL = true,
@@ -970,18 +964,18 @@ local CLEU_HEALING_EVENT = {
 }
 
 
-local MISS_EVENT_STRINGS = {
-    ["ABSORB"] = "Absorbed",
-    ["BLOCK"] = "Blocked",
-    ["DEFLECT"] = "Deflected",
-    ["DODGE"] = "Dodged",
-    ["EVADE"] = "Evaded",
-    ["IMMUNE"] = "Immune",
-    ["MISS"] = "Missed",
-    ["PARRY"] = "Parried",
-    ["REFLECT"] = "Reflected",
-    ["RESIST"] = "Resisted",
-}
+-- local MISS_EVENT_STRINGS = {
+--     ["ABSORB"] = "Absorbed",
+--     ["BLOCK"] = "Blocked",
+--     ["DEFLECT"] = "Deflected",
+--     ["DODGE"] = "Dodged",
+--     ["EVADE"] = "Evaded",
+--     ["IMMUNE"] = "Immune",
+--     ["MISS"] = "Missed",
+--     ["PARRY"] = "Parried",
+--     ["REFLECT"] = "Reflected",
+--     ["RESIST"] = "Resisted",
+-- }
 
 function f:COMBAT_LOG_EVENT_UNFILTERED()
     if CFCT.enabled == false then return end

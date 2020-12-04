@@ -1,0 +1,6 @@
+
+R0.85   Dec  4, 2020
+    - 
+R0.84   Oct 23, 2020
+    - Added event filtering, sorting and merging.
+    - Text can now be displayed behind nameplates
