@@ -873,7 +873,7 @@ function f:ADDON_LOADED(name)
         local version = GetAddOnMetadata(addonName, "Version")
         if (version ~= CFCT.lastVersion) then
             C_Timer.After(5,function()
-                CFCT:Log(GetAddOnMetadata(addonName, "Version").."\nRecent changes:\n    - Text can now be displayed behind nameplates, check the \"Nameplates In Front\" checkbox in text positions options\n    - Added more merge options")
+                CFCT:Log(GetAddOnMetadata(addonName, "Version").."\nRecent changes:\n    - Anti-Overlap number spacing is now customizable in the options")
             end)
         end
         CFCT.lastVersion = version
