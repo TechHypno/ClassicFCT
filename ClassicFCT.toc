@@ -1,8 +1,8 @@
-## Interface: 90001
+## Interface: 90002
 ## Title: ClassicFCT
 ## Notes: Classic Floating Combat Text
 ## Author: TehHypno#2485, techhypno.com, tehypno@ttv
-## Version: R0.84c
+## Version: @project-version@
 ## SavedVariables: ClassicFCTCustomPresets, ClassicFCTConfig, ClassicFCTVars
 ## OptionalDeps: LibStub, CallbackHandler-1.0, LibSharedMedia-3.0
 Libs\libs.xml
