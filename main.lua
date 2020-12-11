@@ -489,10 +489,10 @@ local function UpdateFontParent(self)
     local inheritNameplates = fctConfig.inheritNameplates
     if fctConfig.dontOverlapNameplates then
         self:SetParent(WorldFrame)
-        self.state.baseScale = inheritNameplates and (attach == nameplate) and attach:GetEffectiveScale() * UIParent:GetScale() or UIParent:GetScale()
+        self.state.baseScale = inheritNameplates and (attach and attach == nameplate) and attach:GetEffectiveScale() * UIParent:GetScale() or UIParent:GetScale()
     else
         self:SetParent(UIParent)
-        self.state.baseScale = inheritNameplates and (attach == nameplate) and attach:GetEffectiveScale() or 1
+        self.state.baseScale = inheritNameplates and (attach and attach == nameplate) and attach:GetEffectiveScale() or 1
     end
     self.state.attach = attach
 end
