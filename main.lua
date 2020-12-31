@@ -589,7 +589,9 @@ end
 
 
 local function SpellIconText(spellid)
-    return "|T"..select(3,GetSpellInfo(spellid))..":0|t"
+    local tx = select(3,GetSpellInfo(spellid))
+    if tx then return "|T"..tx..":0|t" end
+    return false
 end
 
 
@@ -872,9 +874,9 @@ function f:ADDON_LOADED(name)
         CFCT.Config:OnLoad()
         local version = GetAddOnMetadata(addonName, "Version")
         if (version ~= CFCT.lastVersion) then
-            C_Timer.After(5,function()
-                CFCT:Log(GetAddOnMetadata(addonName, "Version").."\nRecent changes:\n    - Anti-Overlap number spacing is now customizable in the options")
-            end)
+            -- C_Timer.After(5,function()
+            --     CFCT:Log(GetAddOnMetadata(addonName, "Version").."\nRecent changes:\n    - Anti-Overlap number spacing is now customizable in the options")
+            -- end)
         end
         CFCT.lastVersion = version
     end
