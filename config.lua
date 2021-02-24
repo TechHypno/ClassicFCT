@@ -1,6 +1,7 @@
 local addonName, CFCT = ...
 local tinsert, tremove, format, strlen, strsub, gsub, floor, sin, cos, asin, acos, random, select, pairs, ipairs, bitband = tinsert, tremove, format, strlen, strsub, gsub, floor, sin, cos, asin, acos, random, select, pairs, ipairs, bit.band
-
+local IsClassic = (WOW_PROJECT_ID == WOW_PROJECT_CLASSIC)
+local IsRetail = not IsClassic
 local DefaultPresets = {
     ["Classic"] = {
         animSpeed = 1,
@@ -1483,7 +1484,7 @@ local function CreateSlider(self, label, tooltip, parent, point1, point2, x, y, 
         SetValue(ConfigPath, val)
     end)
 
-    local valueBox = CreateFrame('editbox', nil, slider, "BackdropTemplate")
+    local valueBox = CreateFrame('editbox', nil, slider, BackdropTemplateMixin and "BackdropTemplate")
 	valueBox:SetPoint('TOP', slider, 'BOTTOM', 0, 0)
 	valueBox:SetSize(60, 14)
 	valueBox:SetFontObject(GameFontHighlightSmall)
@@ -2034,6 +2035,10 @@ local function CreateConfigPanel(name, parent, height)
     Container.name = name
     Container.parent = parent
     Container.refresh = Refresh
+	Container.okay = function(self)
+	end
+	Container.cancel = function(self)
+	end
     InterfaceOptions_AddCategory(Container)
     CFCT.ConfigPanels[#CFCT.ConfigPanels + 1] = Container
     Container:SetAllPoints()
@@ -2072,25 +2077,26 @@ local ConfigPanel = CreateConfigPanel("ClassicFCT", nil, 800)
 CFCT.ConfigPanel = ConfigPanel
 local headerGlobal = ConfigPanel:CreateHeader("", "GameFontNormalLarge", ConfigPanel, "TOPLEFT", "TOPLEFT", 16, -16)
 local enabledCheckbox = ConfigPanel:CreateCheckbox("Enable ClassicFCT", "Enables/Disables the addon", headerGlobal, "LEFT", "LEFT", 0, -2, DefaultVars.enabled, "enabled")
-local hideBlizzDamageCheckbox = ConfigPanel:CreateCheckbox("Hide Blizzard Damage", "Enables/Disables the default Blizzard Floating Damage Text", enabledCheckbox, "LEFT", "RIGHT", 16 + enabledCheckbox.label:GetWidth(), 0, DefaultVars.hideBlizz, "hideBlizz")
-hideBlizzDamageCheckbox:HookScript("OnClick", function(self)
-    SetCVar("floatingCombatTextCombatDamage", self:GetChecked() and "0" or "1")
-    -- SetCVar("floatingCombatTextCombatHealing", self:GetChecked() and "0" or "1")
-end)
-hideBlizzDamageCheckbox:HookScript("OnShow", function(self)
-    self:SetChecked(GetCVar("floatingCombatTextCombatDamage") == "0")
-    -- self:SetChecked(GetCVar("floatingCombatTextCombatHealing") == "0")
-end)
-local hideBlizzHealingCheckbox = ConfigPanel:CreateCheckbox("Hide Blizzard Healing", "Enables/Disables the default Blizzard Floating Healing Text", enabledCheckbox, "LEFT", "RIGHT", 16 + enabledCheckbox.label:GetWidth() + 32 + hideBlizzDamageCheckbox.label:GetWidth(), 0, DefaultVars.hideBlizzHeals, "hideBlizzHeals")
-hideBlizzHealingCheckbox:HookScript("OnClick", function(self)
-    -- SetCVar("floatingCombatTextCombatDamage", self:GetChecked() and "0" or "1")
-    SetCVar("floatingCombatTextCombatHealing", self:GetChecked() and "0" or "1")
-end)
-hideBlizzHealingCheckbox:HookScript("OnShow", function(self)
-    -- self:SetChecked(GetCVar("floatingCombatTextCombatDamage") == "0")
-    self:SetChecked(GetCVar("floatingCombatTextCombatHealing") == "0")
-end)
-
+if IsRetail then
+	local hideBlizzDamageCheckbox = ConfigPanel:CreateCheckbox("Hide Blizzard Damage", "Enables/Disables the default Blizzard Floating Damage Text", enabledCheckbox, "LEFT", "RIGHT", 16 + enabledCheckbox.label:GetWidth(), 0, DefaultVars.hideBlizz, "hideBlizz")
+	hideBlizzDamageCheckbox:HookScript("OnClick", function(self)
+		SetCVar("floatingCombatTextCombatDamage", self:GetChecked() and "0" or "1")
+		-- SetCVar("floatingCombatTextCombatHealing", self:GetChecked() and "0" or "1")
+	end)
+	hideBlizzDamageCheckbox:HookScript("OnShow", function(self)
+		self:SetChecked(GetCVar("floatingCombatTextCombatDamage") == "0")
+		-- self:SetChecked(GetCVar("floatingCombatTextCombatHealing") == "0")
+	end)
+	local hideBlizzHealingCheckbox = ConfigPanel:CreateCheckbox("Hide Blizzard Healing", "Enables/Disables the default Blizzard Floating Healing Text", enabledCheckbox, "LEFT", "RIGHT", 16 + enabledCheckbox.label:GetWidth() + 32 + hideBlizzDamageCheckbox.label:GetWidth(), 0, DefaultVars.hideBlizzHeals, "hideBlizzHeals")
+	hideBlizzHealingCheckbox:HookScript("OnClick", function(self)
+		-- SetCVar("floatingCombatTextCombatDamage", self:GetChecked() and "0" or "1")
+		SetCVar("floatingCombatTextCombatHealing", self:GetChecked() and "0" or "1")
+	end)
+	hideBlizzHealingCheckbox:HookScript("OnShow", function(self)
+		-- self:SetChecked(GetCVar("floatingCombatTextCombatDamage") == "0")
+		self:SetChecked(GetCVar("floatingCombatTextCombatHealing") == "0")
+	end)
+end
 local headerPresets = ConfigPanel:CreateHeader("Config Presets", "GameFontNormalLarge", headerGlobal, "TOPLEFT", "BOTTOMLEFT", 0, -20)
 local newPresetBtn = ConfigPanel:CreateButton("New", "Creates a new preset", headerPresets, "TOPLEFT", "TOPRIGHT", 94, 0, function()
     CFCT.Config:CreatePreset()

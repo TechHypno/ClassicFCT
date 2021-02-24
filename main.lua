@@ -1,6 +1,7 @@
 local addonName, CFCT = ...
 _G[addonName] = CFCT
-
+local IsClassic = (WOW_PROJECT_ID == WOW_PROJECT_CLASSIC)
+local IsRetail = not IsClassic
 local tinsert, tremove, tsort, format, strlen, strsub, gsub, floor, sin, cos, asin, acos, random, select, pairs, ipairs, unpack, bitband = tinsert, tremove, table.sort, format, strlen, strsub, gsub, floor, sin, cos, asin, acos, random, select, pairs, ipairs, unpack, bit.band
 local InCombatLockdown = InCombatLockdown
 local AbbreviateNumbers = AbbreviateNumbers
