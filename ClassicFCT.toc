@@ -1,4 +1,4 @@
-## Interface: 20501
+## Interface: 90100
 ## Title: ClassicFCT
 ## Notes: Classic Floating Combat Text
 ## Author: TehHypno#2485, techhypno.com, tehypno@ttv
