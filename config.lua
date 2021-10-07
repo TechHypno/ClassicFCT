@@ -19,6 +19,8 @@ local DefaultPresets = {
         preventOverlapSpacingY = 50,
         attachMode = "tn",
         attachModeFallback = true,
+        spellIconOffsetX = 0,
+        spellIconOffsetY = 0,
         abbreviateNumbers = false,
         kiloSeparator = false,
         filterAbsoluteEnabled = false,
@@ -505,6 +507,8 @@ local DefaultPresets = {
         preventOverlapSpacingY = 50,
         attachMode = "tn",
         attachModeFallback = true,
+        spellIconOffsetX = 0,
+        spellIconOffsetY = 0,
         abbreviateNumbers = false,
         kiloSeparator = false,
         filterAbsoluteEnabled = false,
@@ -2214,7 +2218,14 @@ local areaSliderNY = ConfigPanel:CreateSlider("Nameplate Text Y Offset", "Vertic
 local spacingSliderX = ConfigPanel:CreateSlider("Anti-Overlap Horizontal Spacing", "Horizontal spacing between text", areaSliderNX, "TOPLEFT", "BOTTOMLEFT", 0, -28, 0, 200, 1, DefaultConfig.preventOverlapSpacingX, "Config.preventOverlapSpacingX")
 local spacingSliderY = ConfigPanel:CreateSlider("Anti-Overlap Vertical Spacing", "Vertical spacing between text", spacingSliderX, "LEFT", "RIGHT", 16, 0, 0, 200, 1, DefaultConfig.preventOverlapSpacingY, "Config.preventOverlapSpacingY")
 
-local textFormatOptionsHeader = ConfigPanel:CreateHeader("Number Formatting Options", "GameFontNormalLarge", textPosOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 0, -200)
+
+-- Spell Icon Options
+local spellIconOptionsHeader = ConfigPanel:CreateHeader("Spell Icon Options", "GameFontNormalLarge", textPosOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 0, -200)
+local iconOffsetSliderX = ConfigPanel:CreateSlider("X Offset", "Horizontal offset of spell icon", spellIconOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 20, -24, -20, 20, 1, DefaultConfig.spellIconOffsetX, "Config.spellIconOffsetX")
+local iconOffsetSliderY = ConfigPanel:CreateSlider("Y Offset", "Vertical offset of spell icon", iconOffsetSliderX, "LEFT", "RIGHT", 16, 0, -20, 20, 1, DefaultConfig.spellIconOffsetY, "Config.spellIconOffsetY")
+
+
+local textFormatOptionsHeader = ConfigPanel:CreateHeader("Number Formatting Options", "GameFontNormalLarge", spellIconOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 0, -64)
 local abbrevCheckbox = ConfigPanel:CreateCheckbox("Abbreviate Large Numbers", "Abbreviate large numbers (ex.1K)", textFormatOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 20, -8, DefaultConfig.abbreviateNumbers, "Config.abbreviateNumbers")
 local kiloSepCheckbox = ConfigPanel:CreateCheckbox("Add Thousands Separator", "Add thousands separator (ex.100,000,000)", abbrevCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, 0, DefaultConfig.kiloSeparator, "Config.kiloSeparator")
 
