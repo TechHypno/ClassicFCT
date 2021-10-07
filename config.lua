@@ -22,6 +22,7 @@ local DefaultPresets = {
         spellIconOffsetX = 0,
         spellIconOffsetY = 0,
         spellIconZoom = 1,
+        spellIconAspectRatio = 1,
         abbreviateNumbers = false,
         kiloSeparator = false,
         filterAbsoluteEnabled = false,
@@ -511,6 +512,7 @@ local DefaultPresets = {
         spellIconOffsetX = 0,
         spellIconOffsetY = 0,
         spellIconZoom = 1,
+        spellIconAspectRatio = 1,
         abbreviateNumbers = false,
         kiloSeparator = false,
         filterAbsoluteEnabled = false,
@@ -2226,6 +2228,7 @@ local spellIconOptionsHeader = ConfigPanel:CreateHeader("Spell Icon Options", "G
 local iconOffsetSliderX = ConfigPanel:CreateSlider("X Offset", "Horizontal offset of spell icon", spellIconOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 20, -24, -20, 20, 1, DefaultConfig.spellIconOffsetX, "Config.spellIconOffsetX")
 local iconOffsetSliderY = ConfigPanel:CreateSlider("Y Offset", "Vertical offset of spell icon", iconOffsetSliderX, "LEFT", "RIGHT", 16, 0, -20, 20, 1, DefaultConfig.spellIconOffsetY, "Config.spellIconOffsetY")
 local iconZoomSlider = ConfigPanel:CreateSlider("Zoom", "Zoom in on the icon and trim to edge to give a more square appearance", iconOffsetSliderX, "TOPLEFT", "BOTTOMLEFT", 0, -28, 1, 2, 0.01, DefaultConfig.spellIconZoom, "Config.spellIconZoom")
+local iconAspectRatioSlider = ConfigPanel:CreateSlider("Aspect Ratio", "Aspect ratio of spell icon", iconZoomSlider, "LEFT", "RIGHT", 16, 0, 1, 2, 0.01, DefaultConfig.spellIconAspectRatio, "Config.spellIconAspectRatio")
 
 
 local textFormatOptionsHeader = ConfigPanel:CreateHeader("Number Formatting Options", "GameFontNormalLarge", spellIconOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 0, -108)
