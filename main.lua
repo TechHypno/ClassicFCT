@@ -594,9 +594,13 @@ local function SpellIconText(spellid)
     local tx = select(3,GetSpellInfo(spellid))
     if tx then
         local height, width = 0, 0
+        local zoom = fctConfig.spellIconZoom
         local offsetX, offsetY = fctConfig.spellIconOffsetX, fctConfig.spellIconOffsetY
-        return string.format("|T%s:%d:%d:%d:%d|t",
-            tx, height, width, offsetX, offsetY)
+        local txSize = zoom * 100
+        local txMin = (zoom - 1) * 100 / 2
+        local txMax = (zoom + 1) * 100 / 2
+        return string.format("|T%s:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d|t",
+            tx, height, width, offsetX, offsetY, txSize, txSize, txMin, txMax, txMin, txMax)
     end
     return false
 end
