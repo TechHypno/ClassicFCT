@@ -590,8 +590,21 @@ end
 
 
 local function SpellIconText(spellid)
+    local fctConfig = CFCT.Config
     local tx = select(3,GetSpellInfo(spellid))
-    if tx then return "|T"..tx..":0|t" end
+    if tx then
+        local aspectRatio = fctConfig.spellIconAspectRatio
+        local zoom = fctConfig.spellIconZoom
+        local offsetX, offsetY = fctConfig.spellIconOffsetX, fctConfig.spellIconOffsetY
+        local height, width = 12 / aspectRatio, 12
+        local txSize = zoom * 100
+        local txMinX = (zoom - 1) * 100 / 2
+        local txMaxX = (zoom + 1) * 100 / 2
+        local txMinY = (zoom - (1 / aspectRatio)) * 100 / 2
+        local txMaxY = (zoom + (1 / aspectRatio)) * 100 / 2
+        return string.format("|T%s:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d|t",
+            tx, height, width, offsetX, offsetY, txSize, txSize, txMinX, txMaxX, txMinY, txMaxY)
+    end
     return false
 end
 
