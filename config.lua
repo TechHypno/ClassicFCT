@@ -42,6 +42,7 @@ local DefaultPresets = {
         mergeEventsBySpellID = false,
         mergeEventsBySpellIcon = true,
         mergeEventsBySchool = true,
+        mergeEventsMisses = false,
         colorTable = {
             -- Single Schools
             [Enum.Damageclass.MaskPhysical]	    = "ffff0000",
@@ -532,6 +533,7 @@ local DefaultPresets = {
         mergeEventsBySpellID = false,
         mergeEventsBySpellIcon = true,
         mergeEventsBySchool = true,
+        mergeEventsMisses = false,
         colorTable = {
             -- Single Schools
             [Enum.Damageclass.MaskPhysical]	    = "ffff0000",
@@ -2452,7 +2454,8 @@ local mergingIntervalSlider = ConfigPanel:CreateSlider("Global Merge Interval", 
         end
     end
 end)
-local mergingCountCheckbox = ConfigPanel:CreateCheckbox("Show Merge Count", "Add number of merged events next to the damage/healing (ex '1337 x5')", mergingEnabledCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, 0, DefaultConfig.mergeEventsCounter, "Config.mergeEventsCounter")
+local mergingMissesCheckbox = ConfigPanel:CreateCheckbox("Merge Misses", "Combine dodges, parries, misses, and evades with normal events", mergingEnabledCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, 0, DefaultConfig.mergeEventsMisses, "Config.mergeEventsMisses")
+local mergingCountCheckbox = ConfigPanel:CreateCheckbox("Show Merge Count", "Add number of merged events next to the damage/healing (ex '1337 x5')", mergingMissesCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, 0, DefaultConfig.mergeEventsCounter, "Config.mergeEventsCounter")
 local intervalModeHeader = ConfigPanel:CreateHeader("Relative To", "GameFontHighlightSmall", mergingIntervalSlider, "TOPLEFT", "BOTTOMLEFT", 0, -24)
 local intervalModeDropDown = ConfigPanel:CreateDropDownMenu("Relative To", "", intervalModeHeader, "LEFT", "LEFT", 68, -3, MergeIntervalModeMenu, "Config.mergeEventsIntervalMode")
 intervalModeDropDown.middle:SetWidth(170)
@@ -2574,7 +2577,7 @@ local mergingByIDCheckbox = ConfigPanel:CreateCheckbox("Separate By Spell ID", "
 local mergingByIconCheckbox = ConfigPanel:CreateCheckbox("Separate By Spell Icon", "Dont merge damage with different icons", mergingByIDCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, 0, DefaultConfig.mergeEventsBySpellIcon, "Config.mergeEventsBySpellIcon")
 local mergingByTypeCheckbox = ConfigPanel:CreateCheckbox("Separate By Damage Type", "Dont merge damage of different types", mergingByIconCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, 0, DefaultConfig.mergeEventsBySchool, "Config.mergeEventsBySchool")
 
-local colorTableFrame = ConfigPanel:CreateChildFrame("TOPLEFT", "BOTTOMLEFT", merginOptionsHeader, 0, -164, 300, 340)
+local colorTableFrame = ConfigPanel:CreateChildFrame("TOPLEFT", "BOTTOMLEFT", merginOptionsHeader, 0, -196, 300, 340)
 local colorTableHeader = colorTableFrame:CreateHeader("Damage Type Colors", "GameFontNormalLarge", colorTableFrame, "TOPLEFT", "TOPLEFT", 0, 0)
 local colorTableX, colorTableY, colorTableCounter = 20, 0, 0
 

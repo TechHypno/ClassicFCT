@@ -738,17 +738,29 @@ end
 
 local function ProcessCachedEvents()
     local mergingEnabled = CFCT.Config.mergeEvents
+    local mergeMisses = CFCT.Config.mergeEventsMisses
+
     for id,record in pairs(eventCache) do
         if mergingEnabled then
             if (now > record.expiry) then
                 local merge
                 for _,e in ipairs(record.events) do
-                    if e.miss then
+                    if e.miss and not mergeMisses then
                         DispatchText(e.guid, e.event, e.text, e.spellid, e.spellicon, e.crit, e.miss, e.pet, e.school)
                     elseif not merge then
                         merge = e
                     else
-                        merge.text = merge.text + e.text
+                        if merge.miss and not e.miss then
+                            merge.miss = false
+                            merge.text = 0
+                        end
+                        if not merge.miss and e.miss then
+                            e.text = 0
+                        end
+                        if not (merge.miss and e.miss) then
+                            merge.text = merge.text + e.text
+                        end
+
                         merge.count = merge.count + 1
                         merge.crit = merge.crit or e.crit
                     end
