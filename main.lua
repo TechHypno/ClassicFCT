@@ -685,7 +685,7 @@ local spellIdCache = {}
 CFCT.spellIdCache = spellIdCache
 local eventCache = {}
 CFCT.eventCache = eventCache
-local function CacheEvent(guid, event, text, spellid, spellicon, crit, miss, pet, school)
+local function CacheEvent(guid, event, amount, text, spellid, spellicon, crit, miss, pet, school)
     if (spellid and not spellIdCache[spellid]) then
         spellIdCache[spellid] = true
         if CFCT.ConfigPanel:IsVisible() then
@@ -719,6 +719,7 @@ local function CacheEvent(guid, event, text, spellid, spellicon, crit, miss, pet
         time = now,
         guid = guid,
         event = event,
+        amount = amount,
         text = text,
         spellid = spellid,
         spellicon = spellicon,
@@ -750,28 +751,21 @@ local function ProcessCachedEvents()
                     elseif not merge then
                         merge = e
                     else
-                        if merge.miss and not e.miss then
-                            merge.miss = false
-                            merge.text = 0
-                        end
-                        if not merge.miss and e.miss then
-                            e.text = 0
-                        end
-                        if not (merge.miss and e.miss) then
-                            merge.text = merge.text + e.text
-                        end
-
+                        merge.amount = merge.amount + e.amount
+                        merge.text = merge.text or e.text
                         merge.count = merge.count + 1
                         merge.crit = merge.crit or e.crit
                     end
                 end
                 if merge then
-                    DispatchText(merge.guid, merge.event, merge.text, merge.spellid, merge.spellicon, merge.crit, merge.miss, merge.pet, merge.school, merge.count)
+                    local text = (merge.amount ~= 0) and merge.amount or merge.text
+                    DispatchText(merge.guid, merge.event, text, merge.spellid, merge.spellicon, merge.crit, merge.miss, merge.pet, merge.school, merge.count)
                 end
                 eventCache[id] = nil
             end
         else
             for _,e in ipairs(record.events) do
+                local text = (merge.amount ~= 0) and merge.amount or merge.text
                 DispatchText(e.guid, e.event, e.text, e.spellid, e.spellicon, e.crit, e.miss, e.pet, e.school)
             end
             eventCache[id] = nil
@@ -1080,18 +1074,18 @@ function f:DamageEvent(guid, spellid, amount, crit, pet, school)
     spellid = spellid or 6603 -- 6603 = Auto Attack
     local event = ((spellid == 75) or (spellid == 6603)) and "auto" or "spell" -- 75 = autoshot
     local spellicon = spellid and SpellIconText(spellid) or ""
-    CacheEvent(guid, event, amount, spellid, spellicon, crit, false, pet, school)
+    CacheEvent(guid, event, amount, nil, spellid, spellicon, crit, false, pet, school)
 end
 function f:MissEvent(guid, spellid, amount, misstype, pet, school)
     spellid = spellid or 6603 -- 6603 = Auto Attack
     local event = ((spellid == 75) or (spellid == 6603)) and "auto" or "spell" -- 75 = autoshot
     local spellicon = spellid and SpellIconText(spellid) or ""
-    CacheEvent(guid, event, strlower(misstype):gsub("^%l", strupper), spellid or 6603, spellicon, false, true, pet, school)
+    CacheEvent(guid, event, 0, strlower(misstype):gsub("^%l", strupper), spellid or 6603, spellicon, false, true, pet, school)
 end
 function f:HealingEvent(guid, spellid, amount, crit, pet, school)
     local event = "heal"
     local spellicon = spellid and SpellIconText(spellid) or ""
-    CacheEvent(guid, event, amount, spellid, spellicon, crit, false, pet, school)
+    CacheEvent(guid, event, amount, nil, spellid, spellicon, crit, false, pet, school)
 end
 
 
