@@ -8,7 +8,6 @@ local AbbreviateNumbers = AbbreviateNumbers
 local GetSpellInfo = GetSpellInfo
 local GetTime = GetTime
 
-CFCT.enabled = true
 CFCT.frame = CreateFrame("Frame", "ClassicFCT.frame", UIParent)
 CFCT.Animating = {}
 CFCT.fontStringCache = {}
@@ -602,7 +601,7 @@ local function SpellIconText(spellid)
         local txMaxX = (zoom + 1) * 100 / 2
         local txMinY = (zoom - (1 / aspectRatio)) * 100 / 2
         local txMaxY = (zoom + (1 / aspectRatio)) * 100 / 2
-        return string.format("|T%s:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d|t",
+        return format("|T%s:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d|t",
             tx, height, width, offsetX, offsetY, txSize, txSize, txMinX, txMaxX, txMinY, txMaxY)
     end
     return false
@@ -682,11 +681,23 @@ local function DispatchText(guid, event, value, spellid, spellicon, crit, miss, 
     }))
 end
 
-
+local spellIdCache = {}
+CFCT.spellIdCache = spellIdCache
 local eventCache = {}
 CFCT.eventCache = eventCache
 local function CacheEvent(guid, event, text, spellid, spellicon, crit, miss, pet, school)
+    if (spellid and not spellIdCache[spellid]) then
+        spellIdCache[spellid] = true
+        if CFCT.ConfigPanel:IsVisible() then
+            CFCT.ConfigPanel:refresh()
+        end
+    end
+
     local fctConfig = CFCT.Config
+    if fctConfig.filterSpellBlacklist[spellid] == true then
+        return
+    end
+
     local mergeConfig = {
         {fctConfig.mergeEventsByGuid, guid},
         {fctConfig.mergeEventsBySpellID, spellid},
@@ -698,7 +709,7 @@ local function CacheEvent(guid, event, text, spellid, spellicon, crit, miss, pet
         if e[1] == true then id = id .. tostring(e[2]) end
     end
     -- print(id)
-    local mergeTime = fctConfig.mergeEventsInterval
+    local mergeTime = fctConfig.mergeEventsIntervalOverrides[spellid] or fctConfig.mergeEventsInterval
     local now = GetTime()
     local record = eventCache[id] or {
         events = {},
@@ -795,9 +806,24 @@ end
 local CVAR_CHECK_INTERVAL = 5
 local cvarTimer = 0
 local function checkCvars()
-    local val = CFCT.hideBlizz and "1" or "0"
-    local cvar = GetCVar("floatingCombatTextCombatDamage")
-    CFCT.hideBlizz = (cvar == "1")
+    local varHideDamage = CFCT.hideBlizz and "0" or "1"
+    local varHideHealing = CFCT.hideBlizzHeals and "0" or "1"
+    local cvarHideDamage = GetCVar("floatingCombatTextCombatDamage")
+    local cvarHideHealing = GetCVar("floatingCombatTextCombatHealing")
+    if not (cvarHideDamage == varHideDamage) then
+        if CFCT.forceCVars then
+            SetCVar("floatingCombatTextCombatDamage", varHideDamage)
+        else
+            CFCT.hideBlizz = (cvarHideDamage == "0")
+        end
+    end
+    if not (cvarHideHealing == varHideHealing) then
+        if CFCT.forceCVars then
+            SetCVar("floatingCombatTextCombatHealing", varHideHealing)
+        else
+            CFCT.hideBlizzHeals = (cvarHideHealing == "0")
+        end
+    end
 end
 
 
@@ -882,15 +908,21 @@ f:SetScript("OnUpdate", function(self, elapsed)
 end)
 f:Show()
 
-
 function f:ADDON_LOADED(name)
     if (name == addonName) then
         CFCT.Config:OnLoad()
         local version = GetAddOnMetadata(addonName, "Version")
         if (version ~= CFCT.lastVersion) then
-            -- C_Timer.After(5,function()
-            --     CFCT:Log(GetAddOnMetadata(addonName, "Version").."\nRecent changes:\n    - Anti-Overlap number spacing is now customizable in the options")
-            -- end)
+            C_Timer.After(5,function()
+                CFCT:Log(GetAddOnMetadata(addonName, "Version")..[[
+
+Recent changes:
+    R0.86a   Nov 11, 2021
+        - Added spell icon support for autoattacks and autoshots
+        - Added the option to override merge interval per spellid
+        - Added spellid blacklisting as a filter option
+        - Added spell icon formatting options - Credit: https://github.com/akbyrd)]])
+            end)
         end
         CFCT.lastVersion = version
     end
@@ -1002,7 +1034,6 @@ function f:COMBAT_LOG_EVENT_UNFILTERED()
     if (destGUID == playerGUID) then return end
     -- local unit = nameplates[destGUID]
     local guid = destGUID
-
     if CLEU_DAMAGE_EVENT[cleuEvent] then
         if CLEU_SWING_EVENT[cleuEvent] then
             local amount,overkill,school,resist,block,absorb,crit = arg12,arg13,arg14,arg15,arg16,arg17,arg18
@@ -1034,16 +1065,16 @@ end
 
 
 function f:DamageEvent(guid, spellid, amount, crit, pet, school)
-    if (spellid == 75) then spellid = nil end -- 75 = autoshot
-    local event = spellid and "spell" or "auto"
+    spellid = spellid or 6603 -- 6603 = Auto Attack
+    local event = ((spellid == 75) or (spellid == 6603)) and "auto" or "spell" -- 75 = autoshot
     local spellicon = spellid and SpellIconText(spellid) or ""
     CacheEvent(guid, event, amount, spellid, spellicon, crit, false, pet, school)
 end
 function f:MissEvent(guid, spellid, amount, misstype, pet, school)
-    if (spellid == 75) then spellid = nil end -- 75 = autoshot
-    local event = spellid and "spell" or "auto"
+    spellid = spellid or 6603 -- 6603 = Auto Attack
+    local event = ((spellid == 75) or (spellid == 6603)) and "auto" or "spell" -- 75 = autoshot
     local spellicon = spellid and SpellIconText(spellid) or ""
-    CacheEvent(guid, event, strlower(misstype):gsub("^%l", strupper), spellid, spellicon, false, true, pet, school)
+    CacheEvent(guid, event, strlower(misstype):gsub("^%l", strupper), spellid or 6603, spellicon, false, true, pet, school)
 end
 function f:HealingEvent(guid, spellid, amount, crit, pet, school)
     local event = "heal"

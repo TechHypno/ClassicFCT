@@ -1,4 +1,10 @@
 
+R0.86a   Nov 11, 2021
+    - Added spell icon support for autoattacks and autoshots
+    - Added the option to override merge interval per spellid
+    - Added spellid blacklisting as a filter option
+    - Added spell icon formatting options - Credit: https://github.com/akbyrd
+
 R0.85a   Dec  4, 2020
     - Anti-Overlap number spacing is now customizable in the options
 

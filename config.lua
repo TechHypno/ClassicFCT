@@ -1,5 +1,6 @@
 local addonName, CFCT = ...
 local tinsert, tremove, format, strlen, strsub, gsub, floor, sin, cos, asin, acos, random, select, pairs, ipairs, bitband = tinsert, tremove, format, strlen, strsub, gsub, floor, sin, cos, asin, acos, random, select, pairs, ipairs, bit.band
+local GetSpellInfo = GetSpellInfo
 local IsRetail = (WOW_PROJECT_ID == WOW_PROJECT_MAINLINE)
 local IsClassic = (WOW_PROJECT_ID == WOW_PROJECT_CLASSIC)
 local IsBCC = (WOW_PROJECT_ID == WOW_PROJECT_BURNING_CRUSADE_CLASSIC)
@@ -990,9 +991,38 @@ local DefaultVars = {
     enabled = true,
     hideBlizz = true,
     hideBlizzHeals = true,
+    forceCVars = true,
+    characterSpecificConfig = false,
     selectedPreset = "",
     lastVersion = ""
 }
+local DefaultCharVars = {
+    enabled = true,
+    hideBlizz = true,
+    hideBlizzHeals = true,
+    forceCVars = true,
+    selectedPreset = "",
+}
+local DefaultTables = {
+    mergeEventsIntervalOverrides = {},
+    filterSpellBlacklist = {}
+}
+local ClassSpecificTables = {
+    mergeEventsIntervalOverrides = true,
+    filterSpellBlacklist = true
+}
+for i=1,GetNumClasses(),1 do
+    local class = select(2, GetClassInfo(i))
+    for k,v in pairs(ClassSpecificTables) do
+        DefaultTables[k][class] = {}
+    end
+end
+
+local DefaultCharTables = {
+    mergeEventsIntervalOverrides = {},
+    filterSpellBlacklist = {}
+}
+
 local AnimationDefaults = {
     Pow = {
         enabled = false,
@@ -1069,7 +1099,21 @@ local function UpdateTable(dest, source, template, overwrite)
         end
     end
 end
-
+local function AttachTables(dest, source, template)
+    local class = UnitClassBase('player')
+    for k, t in pairs(template) do
+        if (ClassSpecificTables[k] == true) then
+            if source[k] == nil then source[k] = {} end
+            if source[k][class] == nil then source[k][class] = {} end
+            -- print("AttachTable", k, dest[k], class, source[k][class])
+            dest[k] = source[k][class]
+        else
+            if source[k] == nil then source[k] = {} end
+            -- print("AttachTable", k, dest[k], source[k])
+            dest[k] = source[k]
+        end
+    end
+end
 
 CFCT._log = {}
 function CFCT:Log(msg)
@@ -1122,27 +1166,57 @@ CFCT.ConfigPanels = {}
 CFCT.Presets = {}
 CFCT.Config = {
     OnLoad = function(self)
-        ClassicFCTConfig = ClassicFCTConfig or {}
-        UpdateTable(ClassicFCTConfig, DefaultConfig, DefaultConfig)
-        UpdateTable(self, ClassicFCTConfig, DefaultConfig, true)
-        
+        ClassicFCTCustomPresets = ClassicFCTCustomPresets or {}
+        UpdateTable(CFCT.Presets, ClassicFCTCustomPresets, ClassicFCTCustomPresets, true)
+        UpdateTable(CFCT.Presets, DefaultPresets, DefaultPresets, true)
+
         ClassicFCTVars = ClassicFCTVars or {}
         UpdateTable(ClassicFCTVars, DefaultVars, DefaultVars)
         UpdateTable(CFCT, ClassicFCTVars, DefaultVars, true)
 
-        ClassicFCTCustomPresets = ClassicFCTCustomPresets or {}
-        UpdateTable(CFCT.Presets, ClassicFCTCustomPresets, ClassicFCTCustomPresets, true)
-        UpdateTable(CFCT.Presets, DefaultPresets, DefaultPresets, true)
+        if (not CFCT.characterSpecificConfig) then
+            -- print("Loading Global")
+            ClassicFCTConfig = ClassicFCTConfig or {}
+            UpdateTable(ClassicFCTConfig, DefaultConfig, DefaultConfig)
+            UpdateTable(self, ClassicFCTConfig, DefaultConfig, true)
+
+            ClassicFCTTables = ClassicFCTTables or {}
+            UpdateTable(ClassicFCTTables, DefaultTables, DefaultTables)
+            AttachTables(self, ClassicFCTTables, DefaultTables)
+        else
+            -- print("Loading Character")
+            ClassicFCTCharVars = ClassicFCTCharVars or {}
+            UpdateTable(ClassicFCTCharVars, DefaultCharVars, DefaultCharVars)
+            UpdateTable(CFCT, ClassicFCTCharVars, DefaultCharVars, true)
+
+            ClassicFCTCharConfig = ClassicFCTCharConfig or {}
+            UpdateTable(ClassicFCTCharConfig, DefaultConfig, DefaultConfig)
+            UpdateTable(self, ClassicFCTCharConfig, DefaultConfig, true)
+
+            ClassicFCTCharTables = ClassicFCTCharTables or {}
+            UpdateTable(ClassicFCTCharTables, DefaultCharTables, DefaultCharTables)
+            AttachTables(self, ClassicFCTCharTables, DefaultCharTables)
+        end
     end,
     OnSave = function(self)
-        UpdateTable(self, ClassicFCTConfig, DefaultConfig)
-        UpdateTable(ClassicFCTConfig, self, DefaultConfig, true)
-
-        UpdateTable(CFCT, ClassicFCTVars, DefaultVars)
-        UpdateTable(ClassicFCTVars, CFCT, DefaultVars, true)
-
         ClassicFCTCustomPresets = {}
         UpdateTable(ClassicFCTCustomPresets, CFCT.Presets, CFCT.Presets, true)
+
+        if (not CFCT.characterSpecificConfig) then
+            -- print("Saving Global")
+            UpdateTable(CFCT, ClassicFCTVars, DefaultVars)
+            UpdateTable(ClassicFCTVars, CFCT, DefaultVars, true)
+
+            UpdateTable(self, ClassicFCTConfig, DefaultConfig)
+            UpdateTable(ClassicFCTConfig, self, DefaultConfig, true)
+        else
+            -- print("Saving Character")
+            UpdateTable(CFCT, ClassicFCTCharVars, DefaultCharVars)
+            UpdateTable(ClassicFCTCharVars, CFCT, DefaultCharVars, true)
+
+            UpdateTable(self, ClassicFCTCharConfig, DefaultConfig)
+            UpdateTable(ClassicFCTCharConfig, self, DefaultConfig, true)
+        end
     end,
     LoadPreset = function(self, presetName)
         CFCT:ConfirmAction("This will overwrite your current configuration. Are you sure?", function()
@@ -1249,11 +1323,29 @@ function CFCT.RGBA2Color(r, g, b, a)
 end
 
 
-
 local function ValidateValue(rawVal, minVal, maxVal, step)
     local stepval = floor(rawVal / step) * step
     return min(max((((rawVal - stepval) >= (step / 2)) and stepval + step or stepval), minVal), maxVal)
 end
+
+local function WidgetConfigBridgeGet(self, default, ConfigPathOrFunc)
+    if (type(ConfigPathOrFunc) == 'function') then
+        return ConfigPathOrFunc(self, "Get", default)
+    else
+        local ret = GetValue(ConfigPathOrFunc)
+        -- print("WidgetConfigBridgeGet", ConfigPathOrFunc, default, ret, (ret == nil) and default or ret)
+        return (ret == nil) and default or ret -- value == default
+    end
+end
+
+local function WidgetConfigBridgeSet(self, value, ConfigPathOrFunc)
+    if (type(ConfigPathOrFunc) == 'function') then
+        ConfigPathOrFunc(self, "Set", value)
+    else
+        SetValue(ConfigPathOrFunc, value)
+    end
+end
+
 local AttachModesMenu = {
     {
         text = "Screen Center",
@@ -1423,9 +1515,6 @@ local SCHOOL_NAMES = {
 
 
 
-
-
-
 function ShowColorPicker(r, g, b, a, changedCallback)
     ColorPickerFrame:SetColorRGB(r,g,b);
     ColorPickerFrame.hasOpacity, ColorPickerFrame.opacity = (a ~= nil), a;
@@ -1442,17 +1531,18 @@ local function CreateHeader(self, text, headerType, parent, point1, point2, x, y
     header:SetPoint(point1, parent, point2, x, y)
     return header
 end
-local function CreateCheckbox(self, label, tooltip, parent, point1, point2, x, y, defVal, ConfigPath)
+local function CreateCheckbox(self, label, tooltip, parent, point1, point2, x, y, defVal, ConfigPathOrFunc)
     local checkbox = CreateFrame("CheckButton", self:NewFrameID(), self, "InterfaceOptionsCheckButtonTemplate")
     self:AddFrame(checkbox)
     checkbox:SetPoint(point1, parent, point2, x, y)
     checkbox:SetScript("OnShow", function(self)
-        self:SetChecked(GetValue(ConfigPath) == true)
+        local val = WidgetConfigBridgeGet(self, defVal, ConfigPathOrFunc)
+        self:SetChecked(val)
     end)
     checkbox:SetScript("OnClick", function(self)
         local checked = self:GetChecked()
         PlaySound(checked and SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON or SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_OFF)
-        SetValue(ConfigPath, checked)
+        WidgetConfigBridgeSet(self, checked, ConfigPathOrFunc)
     end)
     checkbox.label = getglobal(checkbox:GetName() .. 'Text')
     checkbox.label:SetText(label)
@@ -1470,7 +1560,7 @@ local function CreateButton(self, label, tooltip, parent, point1, point2, x, y, 
     btn:Show()
     return btn
 end
-local function CreateSlider(self, label, tooltip, parent, point1, point2, x, y, minVal, maxVal, step, defVal, ConfigPath)
+local function CreateSlider(self, label, tooltip, parent, point1, point2, x, y, minVal, maxVal, step, defVal, ConfigPathOrFunc)
     local slider = CreateFrame("Slider", self:NewFrameID(), self, "OptionsSliderTemplate")
     self:AddFrame(slider)
     slider:SetOrientation("HORIZONTAL")
@@ -1486,11 +1576,11 @@ local function CreateSlider(self, label, tooltip, parent, point1, point2, x, y, 
     slider:SetObeyStepOnDrag(true)
 
     slider:SetScript("OnShow", function(self)
-        self:SetValue(GetValue(ConfigPath) or defVal)
+        self:SetValue(WidgetConfigBridgeGet(self, defVal, ConfigPathOrFunc))
     end)
     slider:HookScript("OnValueChanged", function(self, val, isUserInput)
         slider.valueBox:SetText(val)
-        SetValue(ConfigPath, val)
+        WidgetConfigBridgeSet(self, val, ConfigPathOrFunc)
     end)
 
     local valueBox = CreateFrame('editbox', nil, slider, BackdropTemplateMixin and "BackdropTemplate")
@@ -1597,7 +1687,7 @@ local function CreateFontDropdown(self, label, tooltip, parent, point1, point2, 
     end)
     return dropdown
 end
-local function CreateDropDownMenu(self, label, tooltip, parent, point1, point2, x, y, menuItems, menuFuncORConfigPath)
+local function CreateDropDownMenu(self, label, tooltip, parent, point1, point2, x, y, menuItems, ConfigPathOrFunc)
     local dropdown = CreateFrame('Frame', self:NewFrameID(), self, "UIDropDownMenuTemplate")
     self:AddFrame(dropdown)
     dropdown:SetPoint(point1, parent, point2, x, y)
@@ -1607,26 +1697,26 @@ local function CreateDropDownMenu(self, label, tooltip, parent, point1, point2, 
     dropdown.right = getglobal(dropdown:GetName() .. "Right")
     dropdown.curValue = menuItems[1].value
 
-    if (menuFuncORConfigPath and (type(menuFuncORConfigPath) == 'function')) then
-        dropdown.menuFunc = menuFuncORConfigPath
-    else
-        dropdown.configPath = menuFuncORConfigPath
-    end
+    -- if (ConfigPathOrFunc and (type(ConfigPathOrFunc) == 'function')) then
+    --     dropdown.menuFunc = ConfigPathOrFunc
+    -- else
+    --     dropdown.configPath = ConfigPathOrFunc
+    -- end
 
     -- UIDropDownMenu_SetAnchor(dropdown, 300, 0, "CENTER", UIParent, "LEFT")
     local function itemOnClick(self)
         for i, item in ipairs(menuItems) do
             if (item.value == self.value) then
                 dropdown.curValue = item.value
+                break
             end
         end
-        -- local func = dropdown.selectedItem.func
-        -- if (func and (type(func) == 'function')) then func(self, dropdown) end
-        if (dropdown.menuFunc and (type(dropdown.menuFunc) == 'function')) then
-            dropdown.menuFunc(self, dropdown)
-        elseif (dropdown.configPath and (type(dropdown.configPath) == 'string')) then
-            SetValue(dropdown.configPath, dropdown.curValue)
-        end
+        WidgetConfigBridgeSet(dropdown, self.value, ConfigPathOrFunc)
+        -- if (dropdown.menuFunc and (type(dropdown.menuFunc) == 'function')) then
+        --     dropdown.menuFunc(self, dropdown)
+        -- elseif (dropdown.configPath and (type(dropdown.configPath) == 'string')) then
+        --     SetValue(dropdown.configPath, dropdown.curValue)
+        -- end
         UIDropDownMenu_SetSelectedValue(dropdown, self.value)
     end
     dropdown.initialize = function(dd)
@@ -1642,10 +1732,9 @@ local function CreateDropDownMenu(self, label, tooltip, parent, point1, point2, 
         UIDropDownMenu_SetSelectedValue(dd, dd.curValue)
     end
     dropdown:HookScript("OnShow", function(self)
-        if dropdown.configPath then dropdown.curValue = GetValue(dropdown.configPath) end
-        local curValue = dropdown.curValue
+        self.curValue = WidgetConfigBridgeGet(self, self.curValue, ConfigPathOrFunc)
         for _,item in ipairs(menuItems) do
-            if (item.value == curValue) then
+            if (item.value == self.curValue) then
                 getglobal(self:GetName().."Text"):SetText(item.text)
             end
         end
@@ -1661,6 +1750,13 @@ local function CreateColorOption(self, label, tooltip, parent, point1, point2, x
     btn:SetSize(110, 24)
     -- btn:Hide()
     btn:EnableMouse(true)
+
+    if (ConfigPathOrFunc and (type(ConfigPathOrFunc) == 'function')) then
+        btn.configFunc = ConfigPathOrFunc
+    else
+        btn.configPath = ConfigPathOrFunc
+    end
+
     btn.SetColor = function(self, r, g, b, a)
         self.value = {a=a, r=r, g=g, b=b}
         self.preview:SetVertexColor(r, g, b, a)
@@ -1681,22 +1777,14 @@ local function CreateColorOption(self, label, tooltip, parent, point1, point2, x
         ColorPickerFrame.func = function()
             local r, g, b = ColorPickerFrame:GetColorRGB()
             local a = 1 - OpacitySliderFrame:GetValue()
-            if (type(ConfigPathOrFunc) == 'function') then
-                ConfigPathOrFunc(CFCT.RGBA2Color(r, g, b, a))
-            else
-                SetValue(ConfigPathOrFunc, CFCT.RGBA2Color(r, g, b, a))
-            end
+            WidgetConfigBridgeSet(self, CFCT.RGBA2Color(r, g, b, a), ConfigPathOrFunc)
             self:SetColor(r, g, b, a)
         end
         ColorPickerFrame.hasOpacity = true
         ColorPickerFrame.opacityFunc = function()
             local r, g, b = ColorPickerFrame:GetColorRGB()
             local a = 1 - OpacitySliderFrame:GetValue()
-            if (type(ConfigPathOrFunc) == 'function') then
-                ConfigPathOrFunc(CFCT.RGBA2Color(r, g, b, a))
-            else
-                SetValue(ConfigPathOrFunc, CFCT.RGBA2Color(r, g, b, a))
-            end
+            WidgetConfigBridgeSet(self, CFCT.RGBA2Color(r, g, b, a), ConfigPathOrFunc)
             self:SetColor(r, g, b, a)
         end
 
@@ -1705,24 +1793,14 @@ local function CreateColorOption(self, label, tooltip, parent, point1, point2, x
         ColorPickerFrame:SetColorRGB(r, g, b)
 
         ColorPickerFrame.cancelFunc = function()
-            if (type(ConfigPathOrFunc) == 'function') then
-                ConfigPathOrFunc(CFCT.RGBA2Color(r, g, b, a))
-            else
-                SetValue(ConfigPathOrFunc, CFCT.RGBA2Color(r, g, b, a))
-            end
+            WidgetConfigBridgeSet(self, CFCT.RGBA2Color(r, g, b, a), ConfigPathOrFunc)
             self:SetColor(r, g, b, a)
         end
 
         ColorPickerFrame:Show()
     end)
     btn:SetScript("OnShow", function(self)
-        local color
-        if (type(ConfigPathOrFunc) == 'function') then
-            color = ConfigPathOrFunc()
-        else
-            color = GetValue(ConfigPathOrFunc) or defVal
-        end
-        local r, g, b, a = CFCT.Color2RGBA(color)
+        local r, g, b, a = CFCT.Color2RGBA(WidgetConfigBridgeGet(self, defVal, ConfigPathOrFunc))
         self:SetColor(r, g, b, a)
     end)
 
@@ -1929,10 +2007,9 @@ local function CreateCategoryPanel(self, cat, anchor, point1, point2, x, y)
     enabledCheckbox:HookScript("OnClick", function(self)
         if (self:GetChecked()) then f:Show() else f:Hide() end
     end)
-    if (cat:find("auto") == nil) then
-        local showIconsCheckbox = f:CreateCheckbox("Show Spell Icons", "Enables/Disables showing spell icons next to damage text", f, "TOPLEFT", "TOPLEFT", 250, 0, DefaultConfig[cat].showIcons, "Config."..cat..".showIcons")
-        showIconsCheckbox:SetFrameLevel(enabledCheckbox:GetFrameLevel() + 1)
-    end
+    local showIconsCheckbox = f:CreateCheckbox("Show Spell Icons", "Enables/Disables showing spell icons next to damage text", f, "TOPLEFT", "TOPLEFT", 250, 0, DefaultConfig[cat].showIcons, "Config."..cat..".showIcons")
+    showIconsCheckbox:SetFrameLevel(enabledCheckbox:GetFrameLevel() + 1)
+
     local fontFaceDropDown = f:CreateFontDropdown("Font Face", "Font face used", f, "TOPLEFT", "TOPLEFT", -16, -28, DefaultConfig[cat].fontPath, "Config."..cat..".fontPath")
     local fontStyleDropDown = f:CreateDropDownMenu("Font Style", "Font style used", f, "TOPLEFT", "TOPLEFT", 154, -28, FontStylesMenu, "Config."..cat..".fontStyle")
     local fontSizeSlider = f:CreateSlider("Font Size", "Font Size", f, "TOPLEFT", "TOPLEFT", 170+180, -28, 10, 128, 1, DefaultConfig[cat].fontSize, "Config."..cat..".fontSize")
@@ -1973,7 +2050,7 @@ local function CreateCategoryPanel(self, cat, anchor, point1, point2, x, y)
 
     local animHeader = f:CreateHeader("Animation Settings", "GameFontHighlightSmall", f, "TOPLEFT", "TOPLEFT", 4, -60)
 
-    local animDropDown = f:CreateDropDownMenu("Animations", "Animations", f, "TOPLEFT", "TOPLEFT", -16, -70, AnimationsMenu, function(self, dropdown)
+    local animDropDown = f:CreateDropDownMenu("Animations", "Animations", f, "TOPLEFT", "TOPLEFT", -16, -70, AnimationsMenu, function(self)
         show(self.value)
         updateStatus()
     end)
@@ -2050,6 +2127,7 @@ local function CreateConfigPanel(name, parent, height)
 	end
     InterfaceOptions_AddCategory(Container)
     CFCT.ConfigPanels[#CFCT.ConfigPanels + 1] = Container
+    -- Container:HookScript("OnShow")
     Container:SetAllPoints()
     Container:Hide()
 
@@ -2072,6 +2150,7 @@ local function CreateConfigPanel(name, parent, height)
     p.AddFrame = AddFrame
     p.NewFrameID = NewFrameID
     Container.panel = p
+    p.Container = Container
     sf:SetScrollChild(p)
     sf:SetAllPoints()
     p:HookScript("OnShow", function(self) self:SetSize(sf:GetWidth(), height or sf:GetHeight()) end)
@@ -2085,28 +2164,29 @@ end
 local ConfigPanel = CreateConfigPanel("ClassicFCT", nil, 800)
 CFCT.ConfigPanel = ConfigPanel
 local headerGlobal = ConfigPanel:CreateHeader("", "GameFontNormalLarge", ConfigPanel, "TOPLEFT", "TOPLEFT", 16, -16)
-local enabledCheckbox = ConfigPanel:CreateCheckbox("Enable ClassicFCT", "Enables/Disables the addon", headerGlobal, "LEFT", "LEFT", 0, -2, DefaultVars.enabled, "enabled")
+local charSpecificCheckbox = ConfigPanel:CreateCheckbox("Character Specific Config", "Settings are saved per character. Presets stay global.", headerGlobal, "LEFT", "LEFT", 0, -2, DefaultVars.characterSpecificConfig, function(self, e, value)
+    if (e == "Get") then
+        return CFCT.characterSpecificConfig == nil and value or CFCT.characterSpecificConfig
+    elseif (e == "Set") then
+        CFCT.Config:OnSave()
+        CFCT.characterSpecificConfig = value
+        ClassicFCTVars.characterSpecificConfig = value
+        CFCT.Config:OnLoad()
+        ConfigPanel:refresh()
+    end
+end)
+local enabledCheckbox = ConfigPanel:CreateCheckbox("Enable ClassicFCT", "Enables/Disables the addon", charSpecificCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, -2, DefaultVars.enabled, "enabled")
 if IsRetail then
-	local hideBlizzDamageCheckbox = ConfigPanel:CreateCheckbox("Hide Blizzard Damage", "Enables/Disables the default Blizzard Floating Damage Text", enabledCheckbox, "LEFT", "RIGHT", 16 + enabledCheckbox.label:GetWidth(), 0, DefaultVars.hideBlizz, "hideBlizz")
+	local hideBlizzDamageCheckbox = ConfigPanel:CreateCheckbox("Hide Blizzard Damage", "Enables/Disables the default Blizzard Floating Damage Text", enabledCheckbox, "LEFT", "RIGHT", 150, 0, DefaultVars.hideBlizz, "hideBlizz")
 	hideBlizzDamageCheckbox:HookScript("OnClick", function(self)
 		SetCVar("floatingCombatTextCombatDamage", self:GetChecked() and "0" or "1")
-		-- SetCVar("floatingCombatTextCombatHealing", self:GetChecked() and "0" or "1")
 	end)
-	hideBlizzDamageCheckbox:HookScript("OnShow", function(self)
-		self:SetChecked(GetCVar("floatingCombatTextCombatDamage") == "0")
-		-- self:SetChecked(GetCVar("floatingCombatTextCombatHealing") == "0")
-	end)
-	local hideBlizzHealingCheckbox = ConfigPanel:CreateCheckbox("Hide Blizzard Healing", "Enables/Disables the default Blizzard Floating Healing Text", enabledCheckbox, "LEFT", "RIGHT", 16 + enabledCheckbox.label:GetWidth() + 32 + hideBlizzDamageCheckbox.label:GetWidth(), 0, DefaultVars.hideBlizzHeals, "hideBlizzHeals")
+	local hideBlizzHealingCheckbox = ConfigPanel:CreateCheckbox("Hide Blizzard Healing", "Enables/Disables the default Blizzard Floating Healing Text", hideBlizzDamageCheckbox, "LEFT", "RIGHT", 150, 0, DefaultVars.hideBlizzHeals, "hideBlizzHeals")
 	hideBlizzHealingCheckbox:HookScript("OnClick", function(self)
-		-- SetCVar("floatingCombatTextCombatDamage", self:GetChecked() and "0" or "1")
 		SetCVar("floatingCombatTextCombatHealing", self:GetChecked() and "0" or "1")
 	end)
-	hideBlizzHealingCheckbox:HookScript("OnShow", function(self)
-		-- self:SetChecked(GetCVar("floatingCombatTextCombatDamage") == "0")
-		self:SetChecked(GetCVar("floatingCombatTextCombatHealing") == "0")
-	end)
 end
-local headerPresets = ConfigPanel:CreateHeader("Config Presets", "GameFontNormalLarge", headerGlobal, "TOPLEFT", "BOTTOMLEFT", 0, -20)
+local headerPresets = ConfigPanel:CreateHeader("Config Presets", "GameFontNormalLarge", headerGlobal, "TOPLEFT", "BOTTOMLEFT", 0, -46)
 local newPresetBtn = ConfigPanel:CreateButton("New", "Creates a new preset", headerPresets, "TOPLEFT", "TOPRIGHT", 94, 0, function()
     CFCT.Config:CreatePreset()
 end)
@@ -2117,9 +2197,12 @@ end)
 
 
 local PresetMenu = {{}}
-local presetDropDown = ConfigPanel:CreateDropDownMenu("Presets", "Configuration Presets", newPresetBtn, "LEFT", "RIGHT", -10, 0, PresetMenu, function(self)
-    CFCT.selectedPreset = self.value
-    ConfigPanel:refresh()
+local presetDropDown = ConfigPanel:CreateDropDownMenu("Presets", "Configuration Presets", newPresetBtn, "LEFT", "RIGHT", -10, 0, PresetMenu, function(self, e, value)
+    if (e == "Get") then
+        return CFCT.selectedPreset == nil and value or CFCT.selectedPreset
+    elseif (e == "Set") then
+        CFCT.selectedPreset = value
+    end
 end)
 
 local savePresetBtn = ConfigPanel:CreateButton("Save", "Saves current configuration into the selected preset", presetDropDown.middle, "BOTTOMRIGHT", "BOTTOM", 0, -2, function()
@@ -2160,7 +2243,6 @@ presetDropDown:HookScript("OnShow", function(self)
     local dropDownText
     for k,v in pairs(PresetMenu) do if (v.value == self.curValue) then dropDownText = v.text end end
     getglobal(self:GetName().."Text"):SetText(dropDownText)
-
     if (DefaultPresets[self.curValue]) then
         savePresetBtn:Disable()
         deletePresetBtn:Disable()
@@ -2188,21 +2270,6 @@ local headerGeneralSettings = ConfigPanel:CreateHeader("General Settings", "Game
 local animDurationSlider = ConfigPanel:CreateSlider("Animation Duration", "Animation length in seconds", headerGeneralSettings, "TOPLEFT", "BOTTOMLEFT", 20, -24, 0.1, 5.0, 0.1, DefaultConfig.animDuration, "Config.animDuration")
 local textPosOptionsHeader = ConfigPanel:CreateHeader("Text Position Options", "GameFontNormalLarge", headerGeneralSettings, "TOPLEFT", "BOTTOMLEFT", 0, -64)
 
-
--- local textStrataHeader = ConfigPanel:CreateHeader("Text Strata", "GameFontHighlightSmall", textPosOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 20, -16)
--- local textStrataDropDown = ConfigPanel:CreateDropDownMenu("Text Strata", "", textStrataHeader, "LEFT", "LEFT", 64, -3, TextStrataMenu, "Config.textStrata")
--- textStrataDropDown.middle:SetWidth(110)
--- local dontOverlapNameplates = ConfigPanel:CreateCheckbox("Nameplates In Front", "Show text behind the nameplates", textStrataDropDown.right, "LEFT", "RIGHT", -10, 0, DefaultConfig.dontOverlapNameplates, "Config.dontOverlapNameplates")
--- local inheritNameplates = ConfigPanel:CreateCheckbox("Inherit From Nameplates", "Text inherits some atributes from nameplates, like visibility and scale", dontOverlapNameplates, "LEFT", "RIGHT", 132, 0, DefaultConfig.inheritNameplates, "Config.inheritNameplates")
-
-
--- local attachModeHeader = ConfigPanel:CreateHeader("Attach Text To", "GameFontHighlightSmall", textPosOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 20, -48)
--- local attachModeDropDown = ConfigPanel:CreateDropDownMenu("Attach Mode", "", attachModeHeader, "LEFT", "LEFT", 64, -3, AttachModesMenu, "Config.attachMode")
--- attachModeDropDown.middle:SetWidth(110)
-
--- local fallbackCheckbox = ConfigPanel:CreateCheckbox("Attachment Fallback", "When a nameplate isnt available, the text will temporarily attach to the screen center instead", attachModeDropDown.right, "LEFT", "RIGHT", -10, 0, DefaultConfig.attachModeFallback, "Config.attachModeFallback")
--- local overlapCheckbox = ConfigPanel:CreateCheckbox("Prevent Text Overlap", "Prevents damage text frames from overlapping each other", fallbackCheckbox, "LEFT", "RIGHT", 132, 0, DefaultConfig.preventOverlap, "Config.preventOverlap")
-
 local attachModeHeader = ConfigPanel:CreateHeader("Attach Text To", "GameFontHighlightSmall", textPosOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 20, -16)
 local attachModeDropDown = ConfigPanel:CreateDropDownMenu("Attach Mode", "", attachModeHeader, "LEFT", "LEFT", 64, -3, AttachModesMenu, "Config.attachMode")
 attachModeDropDown.middle:SetWidth(110)
@@ -2214,7 +2281,6 @@ local dontOverlapNameplates = ConfigPanel:CreateCheckbox("Nameplates In Front", 
 local inheritNameplates = ConfigPanel:CreateCheckbox("Inherit From Nameplates", "Text inherits some atributes from nameplates, like visibility and scale", overlapCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, 0, DefaultConfig.inheritNameplates, "Config.inheritNameplates")
 
 
--- local areaSliderX = ConfigPanel:CreateSlider("Screen Center Text X Offset", "Horizontal offset of animation area", attachModeHeader, "TOPLEFT", "BOTTOMLEFT", 0, -28, -700, 700, 1, DefaultConfig.areaX, "Config.areaX")
 local areaSliderX = ConfigPanel:CreateSlider("Screen Center Text X Offset", "Horizontal offset of animation area", attachModeHeader, "TOPLEFT", "BOTTOMLEFT", 0, -48, -700, 700, 1, DefaultConfig.areaX, "Config.areaX")
 local areaSliderY = ConfigPanel:CreateSlider("Screen Center Text Y Offset", "Vertical offset of animation area", areaSliderX, "LEFT", "RIGHT", 16, 0, -400, 400, 1, DefaultConfig.areaY, "Config.areaY")
 local areaSliderNX = ConfigPanel:CreateSlider("Nameplate Text X Offset", "Horizontal offset of animation area", areaSliderX, "TOPLEFT", "BOTTOMLEFT", 0, -28, -400, 400, 1, DefaultConfig.areaNX, "Config.areaNX")
@@ -2223,12 +2289,13 @@ local spacingSliderX = ConfigPanel:CreateSlider("Anti-Overlap Horizontal Spacing
 local spacingSliderY = ConfigPanel:CreateSlider("Anti-Overlap Vertical Spacing", "Vertical spacing between text", spacingSliderX, "LEFT", "RIGHT", 16, 0, 0, 200, 1, DefaultConfig.preventOverlapSpacingY, "Config.preventOverlapSpacingY")
 
 
--- Spell Icon Options
+-- Spell Icon Options - Credit: https://github.com/akbyrd
 local spellIconOptionsHeader = ConfigPanel:CreateHeader("Spell Icon Options", "GameFontNormalLarge", textPosOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 0, -200)
 local iconOffsetSliderX = ConfigPanel:CreateSlider("X Offset", "Horizontal offset of spell icon", spellIconOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 20, -24, -20, 20, 1, DefaultConfig.spellIconOffsetX, "Config.spellIconOffsetX")
 local iconOffsetSliderY = ConfigPanel:CreateSlider("Y Offset", "Vertical offset of spell icon", iconOffsetSliderX, "LEFT", "RIGHT", 16, 0, -20, 20, 1, DefaultConfig.spellIconOffsetY, "Config.spellIconOffsetY")
 local iconZoomSlider = ConfigPanel:CreateSlider("Zoom", "Zoom in on the icon and trim to edge to give a more square appearance", iconOffsetSliderX, "TOPLEFT", "BOTTOMLEFT", 0, -28, 1, 2, 0.01, DefaultConfig.spellIconZoom, "Config.spellIconZoom")
 local iconAspectRatioSlider = ConfigPanel:CreateSlider("Aspect Ratio", "Aspect ratio of spell icon", iconZoomSlider, "LEFT", "RIGHT", 16, 0, 1, 2, 0.01, DefaultConfig.spellIconAspectRatio, "Config.spellIconAspectRatio")
+
 
 
 local textFormatOptionsHeader = ConfigPanel:CreateHeader("Number Formatting Options", "GameFontNormalLarge", spellIconOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 0, -108)
@@ -2261,16 +2328,247 @@ averageThresholdSlider:HookScript("OnUpdate", function(self)
     end
 end)
 
-local sortingOptionsHeader = ConfigPanel:CreateHeader("Sorting Options", "GameFontNormalLarge", filteringOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 0, -128)
+
+local filteringBlacklistDropdown
+local filteringBlacklistCheckbox
+local FilteringBlacklistMenu = {{}}
+local filteringBlacklistHeader = ConfigPanel:CreateHeader("SpellId Blacklist", "GameFontHighlightSmall", averageThresholdSlider, "TOPLEFT", "BOTTOMLEFT", 0, -30)
+
+filteringBlacklistDropdown = ConfigPanel:CreateDropDownMenu("SpellId Blacklist", "", filteringBlacklistHeader, "LEFT", "LEFT", 68, -3, FilteringBlacklistMenu, function(self, e, value)
+    if (e == "Get") then
+        return value
+    elseif (e == "Set") then
+        for k,v in pairs(CFCT.Config.filterSpellBlacklist) do
+            if (self.curValue == k) then
+                filteringBlacklistCheckbox:SetChecked(v)
+                return
+            end
+        end
+        filteringBlacklistCheckbox:SetChecked(false)
+    end
+end)
+filteringBlacklistDropdown.middle:SetWidth(170)
+
+filteringBlacklistDropdown:HookScript("OnShow", function(self)
+    wipe(FilteringBlacklistMenu)
+    local spellIdTable = CFCT.Config.filterSpellBlacklist
+    local color = "FFFFFF"
+    for k,v in pairs(spellIdTable) do
+        local name, _, icon = GetSpellInfo(k)
+        if name then
+            CFCT.spellIdCache[k] = true
+            -- print(format("|T%s:12:12:0:0:120:120:10:110:10:110|t|cff%s%s(%d)|r", icon, color, name, k), v)
+            table.insert(FilteringBlacklistMenu, {
+                text = format("|T%s:12:12:0:0:120:120:10:110:10:110|t|cff%s%s(%d)|r", icon, color, name, k),
+                value = k
+            })
+        end
+    end
+    color = "808080"
+    for k,v in pairs(CFCT.spellIdCache) do
+        if (spellIdTable[k] == nil) then
+            local name, _, icon = GetSpellInfo(k)
+            if name then
+                table.insert(FilteringBlacklistMenu, {
+                    text = format("|T%s:12:12:0:0:120:120:10:110:10:110|t|cff%s%s(%d)|r", icon, color, name, k),
+                    value = k
+                })
+            end
+        end
+    end
+    if (self.curValue == nil) then 
+        for k,v in pairs(spellIdTable) do
+            self.curValue = k
+            break
+        end
+    end
+    if (self.curValue == nil) then 
+        for k,v in pairs(CFCT.spellIdCache) do
+            self.curValue = k
+            break
+        end
+    end
+    local dropDownText
+    for k,v in pairs(FilteringBlacklistMenu) do
+        if (v.value == self.curValue) then
+            dropDownText = v.text
+            break
+        end
+    end
+    -- print(self.curValue, dropDownText)
+    if (dropDownText) then
+        self.Button:Enable()
+        filteringBlacklistCheckbox:Enable()
+    else
+        self.Button:Disable()
+        filteringBlacklistCheckbox:Disable()
+    end
+    getglobal(self:GetName().."Text"):SetText(dropDownText or "Empty: Attack a Dummy")
+end)
+filteringBlacklistCheckbox = ConfigPanel:CreateCheckbox("Disable By SpellId", "Stop the selected spell from showing in the damage text", filteringBlacklistDropdown, "TOPLEFT", "BOTTOMLEFT", 16, 0, false, function(self, e, value)
+    local spellIdTable = CFCT.Config.filterSpellBlacklist
+    if (e == "Get") then
+        local spellid = filteringBlacklistDropdown.curValue
+        if spellid then
+            spellval = spellIdTable[spellid]
+            if spellval then
+                return spellval
+            end
+        end
+        return false
+    elseif (e == "Set") then
+        local spellid = filteringBlacklistDropdown.curValue
+        if spellid then
+            if (value == false) then
+                spellIdTable[spellid] = nil
+            else
+                spellIdTable[spellid] = value
+            end
+            filteringBlacklistDropdown:Hide()
+            filteringBlacklistDropdown:Show()
+        end
+    end
+end)
+
+
+local sortingOptionsHeader = ConfigPanel:CreateHeader("Sorting Options", "GameFontNormalLarge", filteringOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 0, -200)
 local sortByDamageCheckbox = ConfigPanel:CreateCheckbox("Sort By Damage/Healing in Descending Order", "Sort events by amount", sortingOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 20, -8, DefaultConfig.sortByDamage, "Config.sortByDamage")
 
 local merginOptionsHeader = ConfigPanel:CreateHeader("Merging Options", "GameFontNormalLarge", sortingOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 0, -40)
 local mergingEnabledCheckbox = ConfigPanel:CreateCheckbox("Merge Events", "Combine damage/healings events with the same spellid into one event", merginOptionsHeader, "TOPLEFT", "BOTTOMLEFT", 20, -8, DefaultConfig.mergeEvents, "Config.mergeEvents")
-local mergingIntervalSlider = ConfigPanel:CreateSlider("Max Interval", "Max time interval between events for a merge to happen (in seconds)", mergingEnabledCheckbox, "LEFT", "RIGHT", 256, 0, 0.01, 5, 0.01, DefaultConfig.mergeEventsInterval, "Config.mergeEventsInterval")
+
+local mergingIntervalOverrideDropdown
+local mergingOverrideIntervalSlider
+local mergingOverrideIntervalResetButton
+local MergeIntervalOverrideMenu = {{}}
+local mergingIntervalSlider = ConfigPanel:CreateSlider("Global Merge Interval", "Max time interval between events for a merge to happen (in seconds)", mergingEnabledCheckbox, "LEFT", "RIGHT", 256, 0, 0.01, 5, 0.01, DefaultConfig.mergeEventsInterval, function(self, e, value)
+    if (e == "Get") then
+        return CFCT.Config.mergeEventsInterval == nil and value or CFCT.Config.mergeEventsInterval
+    elseif (e == "Set") then
+        CFCT.Config.mergeEventsInterval = value
+        local id = mergingIntervalOverrideDropdown.curValue
+        if id and (CFCT.Config.mergeEventsIntervalOverrides[id] == nil) then
+            mergingOverrideIntervalSlider:SetValue(value)
+        end
+    end
+end)
 local mergingCountCheckbox = ConfigPanel:CreateCheckbox("Show Merge Count", "Add number of merged events next to the damage/healing (ex '1337 x5')", mergingEnabledCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, 0, DefaultConfig.mergeEventsCounter, "Config.mergeEventsCounter")
-local intervalModeHeader = ConfigPanel:CreateHeader("Interval Relative To", "GameFontHighlightSmall", mergingCountCheckbox, "LEFT", "RIGHT", 330, -6)
-local intervalModeDropDown = ConfigPanel:CreateDropDownMenu("Interval Relative To", "", intervalModeHeader, "LEFT", "LEFT", 84, -3, MergeIntervalModeMenu, "Config.mergeEventsIntervalMode")
-intervalModeDropDown.middle:SetWidth(80)
+local intervalModeHeader = ConfigPanel:CreateHeader("Relative To", "GameFontHighlightSmall", mergingIntervalSlider, "TOPLEFT", "BOTTOMLEFT", 0, -24)
+local intervalModeDropDown = ConfigPanel:CreateDropDownMenu("Relative To", "", intervalModeHeader, "LEFT", "LEFT", 68, -3, MergeIntervalModeMenu, "Config.mergeEventsIntervalMode")
+intervalModeDropDown.middle:SetWidth(170)
+
+local mergingIntervalOverrideHeader = ConfigPanel:CreateHeader("SpellId Override", "GameFontHighlightSmall", mergingIntervalSlider, "TOPLEFT", "BOTTOMLEFT", 0, -60)
+
+
+
+mergingIntervalOverrideDropdown = ConfigPanel:CreateDropDownMenu("SpellId Override", "", mergingIntervalOverrideHeader, "LEFT", "LEFT", 68, -3, MergeIntervalOverrideMenu, function(self, e, value)
+    if (e == "Get") then
+        return value
+    elseif (e == "Set") then
+        for k,v in pairs(CFCT.Config.mergeEventsIntervalOverrides) do
+            if (self.curValue == k) then
+                mergingOverrideIntervalSlider:SetValue(v)
+                return
+            end
+        end
+        mergingOverrideIntervalSlider:SetValue(CFCT.Config.mergeEventsInterval)
+    end
+end)
+mergingIntervalOverrideDropdown.middle:SetWidth(170)
+mergingIntervalOverrideDropdown:HookScript("OnShow", function(self)
+    wipe(MergeIntervalOverrideMenu)
+    local spellIdTable = CFCT.Config.mergeEventsIntervalOverrides
+    local color = "FFFFFF"
+    for k,v in pairs(spellIdTable) do
+        local name, _, icon = GetSpellInfo(k)
+        if name then
+            CFCT.spellIdCache[k] = true
+            table.insert(MergeIntervalOverrideMenu, {
+                text = format("|T%s:12:12:0:0:120:120:10:110:10:110|t|cff%s%s(%d)|r", icon, color, name, k),
+                value = k
+            })
+        end
+    end
+    color = "808080"
+    for k,v in pairs(CFCT.spellIdCache) do
+        if (spellIdTable[k] == nil)then
+            local name, _, icon = GetSpellInfo(k)
+            if name then
+                table.insert(MergeIntervalOverrideMenu, {
+                    text = format("|T%s:12:12:0:0:120:120:10:110:10:110|t|cff%s%s(%d)|r", icon, color, name, k),
+                    value = k
+                })
+            end
+        end
+    end
+    if (self.curValue == nil) then 
+        for k,v in pairs(spellIdTable) do
+            self.curValue = k
+            break
+        end
+    end
+    if (self.curValue == nil) then 
+        for k,v in pairs(CFCT.spellIdCache) do
+            self.curValue = k
+            break
+        end
+    end
+    local dropDownText
+    for k,v in pairs(MergeIntervalOverrideMenu) do
+        if (v.value == self.curValue) then
+            dropDownText = v.text
+            break
+        end
+    end
+    -- print(self.curValue, dropDownText)
+    if (dropDownText) then
+        self.Button:Enable()
+        mergingOverrideIntervalSlider:Enable()
+        mergingOverrideIntervalSlider.valueBox:Enable()
+    else
+        self.Button:Disable()
+        mergingOverrideIntervalSlider:Disable()
+        mergingOverrideIntervalSlider.valueBox:Disable()
+        mergingOverrideIntervalResetButton:Disable()
+    end
+    getglobal(self:GetName().."Text"):SetText(dropDownText or "Empty: Attack a Dummy")
+end)
+
+mergingOverrideIntervalSlider = ConfigPanel:CreateSlider("Override Merge Interval", "Max time interval between chosen spell events for a merge to happen (in seconds)", mergingIntervalOverrideHeader, "TOPLEFT", "BOTTOMLEFT", 0, -20, 0.01, 5, 0.01, DefaultConfig.mergeEventsInterval, function(self, e, value)
+    local spellIdTable = CFCT.Config.mergeEventsIntervalOverrides
+    if (e == "Get") then
+        local spellid = mergingIntervalOverrideDropdown.curValue
+        if spellid then
+            spellval = spellIdTable[spellid]
+            if spellval then
+                return spellval
+            end
+        end
+        return CFCT.Config.mergeEventsInterval == nil and value or CFCT.Config.mergeEventsInterval
+    elseif (e == "Set") then
+        local spellid = mergingIntervalOverrideDropdown.curValue
+        if spellid then
+            if (value == CFCT.Config.mergeEventsInterval) then
+                spellIdTable[spellid] = nil
+                mergingOverrideIntervalResetButton:Disable()
+            else
+                spellIdTable[spellid] = value
+                mergingOverrideIntervalResetButton:Enable()
+            end
+            mergingIntervalOverrideDropdown:Hide()
+            mergingIntervalOverrideDropdown:Show()
+        end
+    end
+end)
+mergingOverrideIntervalResetButton = ConfigPanel:CreateButton("Reset", "Restores chosen spell merge interval to a common setting", mergingOverrideIntervalSlider, "TOPRIGHT", "BOTTOMRIGHT", -10, 3, function()
+    local id = mergingIntervalOverrideDropdown.curValue
+    if id then
+        mergingOverrideIntervalSlider:SetValue(CFCT.Config.mergeEventsInterval)
+    end
+end)
+mergingOverrideIntervalResetButton:SetFrameLevel(mergingOverrideIntervalSlider:GetFrameLevel()+1)
+
+
 local mergingByGuidCheckbox = ConfigPanel:CreateCheckbox("Separate By Target", "Dont merge damage done to different targets", mergingCountCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, 0, DefaultConfig.mergeEventsByGuid, "Config.mergeEventsByGuid")
 local mergingByIDCheckbox = ConfigPanel:CreateCheckbox("Separate By Spell ID", "Dont merge damage with different spellids", mergingByGuidCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, 0, DefaultConfig.mergeEventsBySpellID, "Config.mergeEventsBySpellID")
 local mergingByIconCheckbox = ConfigPanel:CreateCheckbox("Separate By Spell Icon", "Dont merge damage with different icons", mergingByIDCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, 0, DefaultConfig.mergeEventsBySpellIcon, "Config.mergeEventsBySpellIcon")
@@ -2287,11 +2585,11 @@ for k,v in pairs(SCHOOL_NAMES) do
         colorTableY = 0
     end
     colorTableY = colorTableY - 20
-    local colorWidget = colorTableFrame:CreateColorOption(v, "Custom text color for this type", colorTableFrame, "TOPLEFT", "TOPLEFT", colorTableX, colorTableY, DefaultConfig.colorTable[k], function(val)
-        if (val == nil) then
+    local colorWidget = colorTableFrame:CreateColorOption(v, "Custom text color for this type", colorTableFrame, "TOPLEFT", "TOPLEFT", colorTableX, colorTableY, DefaultConfig.colorTable[k], function(self, e, value)
+        if (e == "Get") then
             return CFCT.Config.colorTable[k]
         else
-            CFCT.Config.colorTable[k] = val
+            CFCT.Config.colorTable[k] = value
         end
     end)
 end
