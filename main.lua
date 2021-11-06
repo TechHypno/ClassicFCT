@@ -346,11 +346,11 @@ local function GridLayout(unsortedFrames)
                 local s1 = v.state
                 for i,e in ipairs(frames) do
                     local s2 = e.state
-                    if (s2.isNumber and s1.isNumber) and (s2.value < s1.value) then
+                    if (not s2.miss and not s1.miss) and (s2.value < s1.value) then
                         tinsert(frames, i, v)
                         count = count + 1
                         break
-                    elseif (s1.isString ~= s2.isString) and (missPrio or s1.isNumber) then
+                    elseif (s1.miss ~= s2.miss) and (missPrio or not s1.miss) then
                         tinsert(frames, i, v)
                         count = count + 1
                         break
@@ -675,9 +675,6 @@ local function DispatchText(guid, event, value, spellid, spellicon, crit, miss, 
             fontColor = fontColor,
             fontAlpha = fontAlpha
         },
-        isNumber = not miss,
-        -- isCrit = crit,
-        isString = miss
     }))
 end
 
