@@ -32,6 +32,7 @@ local DefaultPresets = {
         filterRelativeThreshold = 10,
         filterAverageEnabled = false,
         filterAverageThreshold = 10,
+        filterMissesEnabled = false,
         sortByDamage = false,
         sortMissPrio = false,
         mergeEvents = false,
@@ -522,6 +523,7 @@ local DefaultPresets = {
         filterRelativeThreshold = 10,
         filterAverageEnabled = false,
         filterAverageThreshold = 10,
+        filterMissesEnabled = false,
         sortByDamage = false,
         sortMissPrio = false,
         mergeEvents = false,
@@ -1201,7 +1203,7 @@ CFCT.Config = {
     OnSave = function(self)
         ClassicFCTCustomPresets = {}
         UpdateTable(ClassicFCTCustomPresets, CFCT.Presets, CFCT.Presets, true)
-
+        ClassicFCTVars.lastVersion = CFCT.lastVersion
         if (not CFCT.characterSpecificConfig) then
             -- print("Saving Global")
             UpdateTable(CFCT, ClassicFCTVars, DefaultVars)
@@ -2327,7 +2329,7 @@ averageThresholdSlider:HookScript("OnUpdate", function(self)
         averageThresholdTimer = now
     end
 end)
-
+local filterMissesCheckbox = ConfigPanel:CreateCheckbox("Hide Misses", "Hides Absorb, Block, Miss, Parry, Dodge, Deflect, Evade, Immune, Reflect and Resist.", averageFilterCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, -20, DefaultConfig.filterMissesEnabled, "Config.filterMissesEnabled")
 
 local filteringBlacklistDropdown
 local filteringBlacklistCheckbox
