@@ -346,7 +346,7 @@ local function GridLayout(unsortedFrames)
                 local s1 = v.state
                 for i,e in ipairs(frames) do
                     local s2 = e.state
-                    if (not s2.miss and not s1.miss) and (s2.value < s1.value) then
+                    if (not s2.miss and not s1.miss) and (s2.amount < s1.amount) then
                         tinsert(frames, i, v)
                         count = count + 1
                         break
@@ -613,28 +613,27 @@ local function GetTypeColor(school)
 end
 
 
-local function DispatchText(guid, event, value, spellid, spellicon, crit, miss, pet, school, count)
+local function DispatchText(guid, event, text, amount, spellid, spellicon, crit, miss, pet, school, count)
     local cat = (pet and "pet" or "")..event..(crit and "crit" or miss and "miss" or "")
     local fctConfig = CFCT.Config
     local catConfig = fctConfig[cat]
-    local text = value
     -- TODO put fctConfig and catConfig into state
 
     count = count or 1
     if (not miss) then
         if (not crit) then
-            AddToAverage(text / count)
+            AddToAverage(amount / count)
         end
-        if (fctConfig.filterAbsoluteEnabled and (fctConfig.filterAbsoluteThreshold > text))
-        or (fctConfig.filterRelativeEnabled and ((fctConfig.filterRelativeThreshold * 0.01 * CFCT:UnitHealthMax('player')) > text))
-        or (fctConfig.filterAverageEnabled and ((fctConfig.filterAverageThreshold * 0.01 * CFCT:DamageRollingAverage()) > text)) then
+        if (fctConfig.filterAbsoluteEnabled and (fctConfig.filterAbsoluteThreshold > amount))
+        or (fctConfig.filterRelativeEnabled and ((fctConfig.filterRelativeThreshold * 0.01 * CFCT:UnitHealthMax('player')) > amount))
+        or (fctConfig.filterAverageEnabled and ((fctConfig.filterAverageThreshold * 0.01 * CFCT:DamageRollingAverage()) > amount)) then
             return false
         end
 
         if (fctConfig.abbreviateNumbers) then
-            text = AbbreviateNumbers(text)
+            text = AbbreviateNumbers(amount)
         elseif (fctConfig.kiloSeparator) then
-            text = FormatThousandSeparator(text)
+            text = FormatThousandSeparator(amount)
         end
     end
     
@@ -663,7 +662,7 @@ local function DispatchText(guid, event, value, spellid, spellicon, crit, miss, 
         guid = guid,
         icon = spellicon,
         text = text,
-        value = value,
+        amount = amount,
         baseAlpha = 1,
         baseScale = 1,
         fadeAlpha = 1,
@@ -744,7 +743,7 @@ local function ProcessCachedEvents()
                 local merge
                 for _,e in ipairs(record.events) do
                     if e.miss and not mergeMisses then
-                        DispatchText(e.guid, e.event, e.text, e.spellid, e.spellicon, e.crit, e.miss, e.pet, e.school)
+                        DispatchText(e.guid, e.event, e.text, e.amount, e.spellid, e.spellicon, e.crit, e.miss, e.pet, e.school)
                     elseif not merge then
                         merge = e
                     else
@@ -756,14 +755,14 @@ local function ProcessCachedEvents()
                 end
                 if merge then
                     local text = (merge.amount ~= 0) and merge.amount or merge.text
-                    DispatchText(merge.guid, merge.event, text, merge.spellid, merge.spellicon, merge.crit, merge.miss, merge.pet, merge.school, merge.count)
+                    DispatchText(merge.guid, merge.event, text, merge.amount, merge.spellid, merge.spellicon, merge.crit, merge.miss, merge.pet, merge.school, merge.count)
                 end
                 eventCache[id] = nil
             end
         else
             for _,e in ipairs(record.events) do
                 local text = (merge.amount ~= 0) and merge.amount or merge.text
-                DispatchText(e.guid, e.event, e.text, e.spellid, e.spellicon, e.crit, e.miss, e.pet, e.school)
+                DispatchText(e.guid, e.event, e.text, e.amount, e.spellid, e.spellicon, e.crit, e.miss, e.pet, e.school)
             end
             eventCache[id] = nil
         end
@@ -794,13 +793,14 @@ function CFCT:Test(n)
         local crit = (random(1,3) == 1)
         local miss = not crit and (random(1,2) == 1)
         local event = cats[random(1,#cats)]
-        local amount = crit and 2674 or miss and "Miss" or 1337
+        local text = miss and "Miss" or nil
+        local amount = crit and 2674 or miss and 0 or 1337
         if crit and miss then
             print(amount, crit, miss)
         end
         local guid = (numplates > 0) and UnitGUID(nameplates[random(1,numplates)].UnitFrame.unit) or UnitGUID("target")
         local spellicon = spellid and SpellIconText(spellid) or ""
-        DispatchText(guid, event, amount, spellid, spellicon, crit, miss, pet, school)
+        DispatchText(guid, event, text, amount, spellid, spellicon, crit, miss, pet, school)
     end
 end
 
