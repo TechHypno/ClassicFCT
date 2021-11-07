@@ -761,7 +761,7 @@ local function ProcessCachedEvents()
             end
         else
             for _,e in ipairs(record.events) do
-                local text = (merge.amount ~= 0) and merge.amount or merge.text
+                local text = (e.amount ~= 0) and e.amount or e.text
                 DispatchText(e.guid, e.event, e.text, e.amount, e.spellid, e.spellicon, e.crit, e.miss, e.pet, e.school)
             end
             eventCache[id] = nil
