@@ -2454,8 +2454,7 @@ local mergingIntervalSlider = ConfigPanel:CreateSlider("Global Merge Interval", 
         end
     end
 end)
-local mergingMissesCheckbox = ConfigPanel:CreateCheckbox("Merge Misses", "Combine dodges, parries, misses, and evades with normal events", mergingEnabledCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, 0, DefaultConfig.mergeEventsMisses, "Config.mergeEventsMisses")
-local mergingCountCheckbox = ConfigPanel:CreateCheckbox("Show Merge Count", "Add number of merged events next to the damage/healing (ex '1337 x5')", mergingMissesCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, 0, DefaultConfig.mergeEventsCounter, "Config.mergeEventsCounter")
+local mergingCountCheckbox = ConfigPanel:CreateCheckbox("Show Merge Count", "Add number of merged events next to the damage/healing (ex '1337 x5')", mergingEnabledCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, 0, DefaultConfig.mergeEventsCounter, "Config.mergeEventsCounter")
 local intervalModeHeader = ConfigPanel:CreateHeader("Relative To", "GameFontHighlightSmall", mergingIntervalSlider, "TOPLEFT", "BOTTOMLEFT", 0, -24)
 local intervalModeDropDown = ConfigPanel:CreateDropDownMenu("Relative To", "", intervalModeHeader, "LEFT", "LEFT", 68, -3, MergeIntervalModeMenu, "Config.mergeEventsIntervalMode")
 intervalModeDropDown.middle:SetWidth(170)
@@ -2572,7 +2571,8 @@ end)
 mergingOverrideIntervalResetButton:SetFrameLevel(mergingOverrideIntervalSlider:GetFrameLevel()+1)
 
 
-local mergingByGuidCheckbox = ConfigPanel:CreateCheckbox("Separate By Target", "Dont merge damage done to different targets", mergingCountCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, 0, DefaultConfig.mergeEventsByGuid, "Config.mergeEventsByGuid")
+local mergingMissesCheckbox = ConfigPanel:CreateCheckbox("Separate Misses", "Dont merge dodges, parries, misses, and evades with damage events", mergingCountCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, 0, DefaultConfig.mergeEventsMisses, "Config.mergeEventsMisses")
+local mergingByGuidCheckbox = ConfigPanel:CreateCheckbox("Separate By Target", "Dont merge damage done to different targets", mergingMissesCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, 0, DefaultConfig.mergeEventsByGuid, "Config.mergeEventsByGuid")
 local mergingByIDCheckbox = ConfigPanel:CreateCheckbox("Separate By Spell ID", "Dont merge damage with different spellids", mergingByGuidCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, 0, DefaultConfig.mergeEventsBySpellID, "Config.mergeEventsBySpellID")
 local mergingByIconCheckbox = ConfigPanel:CreateCheckbox("Separate By Spell Icon", "Dont merge damage with different icons", mergingByIDCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, 0, DefaultConfig.mergeEventsBySpellIcon, "Config.mergeEventsBySpellIcon")
 local mergingByTypeCheckbox = ConfigPanel:CreateCheckbox("Separate By Damage Type", "Dont merge damage of different types", mergingByIconCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, 0, DefaultConfig.mergeEventsBySchool, "Config.mergeEventsBySchool")
