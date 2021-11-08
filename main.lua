@@ -617,6 +617,7 @@ local function DispatchText(guid, event, text, amount, spellid, spellicon, crit,
     local cat = (pet and "pet" or "")..event..(crit and "crit" or miss and "miss" or "")
     local fctConfig = CFCT.Config
     local catConfig = fctConfig[cat]
+    text = text or tostring(amount)
     -- TODO put fctConfig and catConfig into state
 
     count = count or 1
