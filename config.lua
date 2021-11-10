@@ -2180,16 +2180,19 @@ local charSpecificCheckbox = ConfigPanel:CreateCheckbox("Character Specific Conf
     end
 end)
 local enabledCheckbox = ConfigPanel:CreateCheckbox("Enable ClassicFCT", "Enables/Disables the addon", charSpecificCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, -2, DefaultVars.enabled, "enabled")
-if IsRetail then
-	local hideBlizzDamageCheckbox = ConfigPanel:CreateCheckbox("Hide Blizzard Damage", "Enables/Disables the default Blizzard Floating Damage Text", enabledCheckbox, "LEFT", "RIGHT", 150, 0, DefaultVars.hideBlizz, "hideBlizz")
-	hideBlizzDamageCheckbox:HookScript("OnClick", function(self)
-		SetCVar("floatingCombatTextCombatDamage", self:GetChecked() and "0" or "1")
-	end)
-	local hideBlizzHealingCheckbox = ConfigPanel:CreateCheckbox("Hide Blizzard Healing", "Enables/Disables the default Blizzard Floating Healing Text", hideBlizzDamageCheckbox, "LEFT", "RIGHT", 150, 0, DefaultVars.hideBlizzHeals, "hideBlizzHeals")
-	hideBlizzHealingCheckbox:HookScript("OnClick", function(self)
-		SetCVar("floatingCombatTextCombatHealing", self:GetChecked() and "0" or "1")
-	end)
-end
+
+local hideBlizzDamageCheckbox = ConfigPanel:CreateCheckbox("Hide Blizzard Damage", "Enables/Disables the default Blizzard Floating Damage Text", enabledCheckbox, "LEFT", "RIGHT", 150, 0, DefaultVars.hideBlizz, "hideBlizz")
+hideBlizzDamageCheckbox:HookScript("OnClick", function(self)
+    SetCVar("floatingCombatTextCombatDamage", self:GetChecked() and "0" or "1")
+end)
+if (GetCVarDefault("floatingCombatTextCombatDamage") == nil) then hideBlizzDamageCheckbox:Hide() end
+
+local hideBlizzHealingCheckbox = ConfigPanel:CreateCheckbox("Hide Blizzard Healing", "Enables/Disables the default Blizzard Floating Healing Text", hideBlizzDamageCheckbox, "LEFT", "RIGHT", 150, 0, DefaultVars.hideBlizzHeals, "hideBlizzHeals")
+hideBlizzHealingCheckbox:HookScript("OnClick", function(self)
+    SetCVar("floatingCombatTextCombatHealing", self:GetChecked() and "0" or "1")
+end)
+if (GetCVarDefault("floatingCombatTextCombatHealing") == nil) then hideBlizzDamageCheckbox:Hide() end
+
 local headerPresets = ConfigPanel:CreateHeader("Config Presets", "GameFontNormalLarge", headerGlobal, "TOPLEFT", "BOTTOMLEFT", 0, -46)
 local newPresetBtn = ConfigPanel:CreateButton("New", "Creates a new preset", headerPresets, "TOPLEFT", "TOPRIGHT", 94, 0, function()
     CFCT.Config:CreatePreset()

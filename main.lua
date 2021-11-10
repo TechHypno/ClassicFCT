@@ -807,22 +807,26 @@ end
 local CVAR_CHECK_INTERVAL = 5
 local cvarTimer = 0
 local function checkCvars()
-    local varHideDamage = CFCT.hideBlizz and "0" or "1"
-    local varHideHealing = CFCT.hideBlizzHeals and "0" or "1"
-    local cvarHideDamage = GetCVar("floatingCombatTextCombatDamage")
-    local cvarHideHealing = GetCVar("floatingCombatTextCombatHealing")
-    if not (cvarHideDamage == varHideDamage) then
-        if CFCT.forceCVars then
-            SetCVar("floatingCombatTextCombatDamage", varHideDamage)
-        else
-            CFCT.hideBlizz = (cvarHideDamage == "0")
+    if (GetCVarDefault("floatingCombatTextCombatDamage")) then
+        local varHideDamage = CFCT.hideBlizz and "0" or "1"
+        local cvarHideDamage = GetCVar("floatingCombatTextCombatDamage")
+        if not (cvarHideDamage == varHideDamage) then
+            if CFCT.forceCVars then
+                SetCVar("floatingCombatTextCombatDamage", varHideDamage)
+            else
+                CFCT.hideBlizz = (cvarHideDamage == "0")
+            end
         end
     end
-    if not (cvarHideHealing == varHideHealing) then
-        if CFCT.forceCVars then
-            SetCVar("floatingCombatTextCombatHealing", varHideHealing)
-        else
-            CFCT.hideBlizzHeals = (cvarHideHealing == "0")
+    if (GetCVarDefault("floatingCombatTextCombatHealing")) then
+        local varHideHealing = CFCT.hideBlizzHeals and "0" or "1"
+        local cvarHideHealing = GetCVar("floatingCombatTextCombatHealing")
+        if not (cvarHideHealing == varHideHealing) then
+            if CFCT.forceCVars then
+                SetCVar("floatingCombatTextCombatHealing", varHideHealing)
+            else
+                CFCT.hideBlizzHeals = (cvarHideHealing == "0")
+            end
         end
     end
 end
