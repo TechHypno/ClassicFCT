@@ -927,7 +927,7 @@ function f:ADDON_LOADED(name)
                 CFCT:Log(GetAddOnMetadata(addonName, "Version")..[[
 
 Recent changes:
-    R0.86a   Nov 11, 2021
+    R0.86a   Nov 6, 2021
         - Added spell icon support for autoattacks and autoshots
         - Added the option to override merge interval per spellid
         - Added spellid blacklisting as a filter option
