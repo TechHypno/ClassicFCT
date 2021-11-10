@@ -1016,7 +1016,9 @@ local ClassSpecificTables = {
 for i=1,GetNumClasses(),1 do
     local class = select(2, GetClassInfo(i))
     for k,v in pairs(ClassSpecificTables) do
-        DefaultTables[k][class] = {}
+        if(class) then
+            DefaultTables[k][class] = {}
+        end
     end
 end
 
