@@ -350,7 +350,7 @@ local function GridLayout(unsortedFrames)
                         tinsert(frames, i, v)
                         count = count + 1
                         break
-                    elseif (s1.miss ~= s2.miss) and (missPrio or not s1.miss) then
+                    elseif (s1.miss ~= s2.miss) and ((s1.miss and missPrio) or not s1.miss) then
                         tinsert(frames, i, v)
                         count = count + 1
                         break
