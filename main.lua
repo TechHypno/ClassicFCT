@@ -346,11 +346,11 @@ local function GridLayout(unsortedFrames)
                 local s1 = v.state
                 for i,e in ipairs(frames) do
                     local s2 = e.state
-                    if (s2.isNumber and s1.isNumber) and (s2.value < s1.value) then
+                    if (not s2.miss and not s1.miss) and (s2.amount < s1.amount) then
                         tinsert(frames, i, v)
                         count = count + 1
                         break
-                    elseif (s1.isString ~= s2.isString) and (missPrio or s1.isNumber) then
+                    elseif (s1.miss ~= s2.miss) and ((s1.miss and missPrio) or not s1.miss) then
                         tinsert(frames, i, v)
                         count = count + 1
                         break
@@ -613,28 +613,28 @@ local function GetTypeColor(school)
 end
 
 
-local function DispatchText(guid, event, value, spellid, spellicon, crit, miss, pet, school, count)
+local function DispatchText(guid, event, text, amount, spellid, spellicon, crit, miss, pet, school, count)
     local cat = (pet and "pet" or "")..event..(crit and "crit" or miss and "miss" or "")
     local fctConfig = CFCT.Config
     local catConfig = fctConfig[cat]
-    local text = value
+    text = text or tostring(amount)
     -- TODO put fctConfig and catConfig into state
 
     count = count or 1
     if (not miss) then
         if (not crit) then
-            AddToAverage(text / count)
+            AddToAverage(amount / count)
         end
-        if (fctConfig.filterAbsoluteEnabled and (fctConfig.filterAbsoluteThreshold > text))
-        or (fctConfig.filterRelativeEnabled and ((fctConfig.filterRelativeThreshold * 0.01 * CFCT:UnitHealthMax('player')) > text))
-        or (fctConfig.filterAverageEnabled and ((fctConfig.filterAverageThreshold * 0.01 * CFCT:DamageRollingAverage()) > text)) then
+        if (fctConfig.filterAbsoluteEnabled and (fctConfig.filterAbsoluteThreshold > amount))
+        or (fctConfig.filterRelativeEnabled and ((fctConfig.filterRelativeThreshold * 0.01 * CFCT:UnitHealthMax('player')) > amount))
+        or (fctConfig.filterAverageEnabled and ((fctConfig.filterAverageThreshold * 0.01 * CFCT:DamageRollingAverage()) > amount)) then
             return false
         end
 
         if (fctConfig.abbreviateNumbers) then
-            text = AbbreviateNumbers(text)
+            text = AbbreviateNumbers(amount)
         elseif (fctConfig.kiloSeparator) then
-            text = FormatThousandSeparator(text)
+            text = FormatThousandSeparator(amount)
         end
     end
     
@@ -663,7 +663,8 @@ local function DispatchText(guid, event, value, spellid, spellicon, crit, miss, 
         guid = guid,
         icon = spellicon,
         text = text,
-        value = value,
+        amount = amount,
+        miss = miss,
         baseAlpha = 1,
         baseScale = 1,
         fadeAlpha = 1,
@@ -675,9 +676,6 @@ local function DispatchText(guid, event, value, spellid, spellicon, crit, miss, 
             fontColor = fontColor,
             fontAlpha = fontAlpha
         },
-        isNumber = not miss,
-        -- isCrit = crit,
-        isString = miss
     }))
 end
 
@@ -685,7 +683,7 @@ local spellIdCache = {}
 CFCT.spellIdCache = spellIdCache
 local eventCache = {}
 CFCT.eventCache = eventCache
-local function CacheEvent(guid, event, text, spellid, spellicon, crit, miss, pet, school)
+local function CacheEvent(guid, event, amount, text, spellid, spellicon, crit, miss, pet, school)
     if (spellid and not spellIdCache[spellid]) then
         spellIdCache[spellid] = true
         if CFCT.ConfigPanel:IsVisible() then
@@ -720,6 +718,7 @@ local function CacheEvent(guid, event, text, spellid, spellicon, crit, miss, pet
         time = now,
         guid = guid,
         event = event,
+        amount = amount,
         text = text,
         spellid = spellid,
         spellicon = spellicon,
@@ -739,29 +738,34 @@ end
 
 local function ProcessCachedEvents()
     local mergingEnabled = CFCT.Config.mergeEvents
+    local separateMisses = CFCT.Config.mergeEventsMisses
+
     for id,record in pairs(eventCache) do
         if mergingEnabled then
             if (now > record.expiry) then
                 local merge
                 for _,e in ipairs(record.events) do
-                    if e.miss then
-                        DispatchText(e.guid, e.event, e.text, e.spellid, e.spellicon, e.crit, e.miss, e.pet, e.school)
+                    if e.miss and separateMisses then
+                        DispatchText(e.guid, e.event, e.text, e.amount, e.spellid, e.spellicon, e.crit, e.miss, e.pet, e.school)
                     elseif not merge then
                         merge = e
                     else
-                        merge.text = merge.text + e.text
+                        merge.amount = merge.amount + e.amount
+                        merge.text = merge.text or e.text
                         merge.count = merge.count + 1
                         merge.crit = merge.crit or e.crit
                     end
                 end
                 if merge then
-                    DispatchText(merge.guid, merge.event, merge.text, merge.spellid, merge.spellicon, merge.crit, merge.miss, merge.pet, merge.school, merge.count)
+                    local text = (merge.amount ~= 0) and merge.amount or merge.text
+                    DispatchText(merge.guid, merge.event, text, merge.amount, merge.spellid, merge.spellicon, merge.crit, merge.miss, merge.pet, merge.school, merge.count)
                 end
                 eventCache[id] = nil
             end
         else
             for _,e in ipairs(record.events) do
-                DispatchText(e.guid, e.event, e.text, e.spellid, e.spellicon, e.crit, e.miss, e.pet, e.school)
+                local text = (e.amount ~= 0) and e.amount or e.text
+                DispatchText(e.guid, e.event, e.text, e.amount, e.spellid, e.spellicon, e.crit, e.miss, e.pet, e.school)
             end
             eventCache[id] = nil
         end
@@ -792,13 +796,14 @@ function CFCT:Test(n)
         local crit = (random(1,3) == 1)
         local miss = not crit and (random(1,2) == 1)
         local event = cats[random(1,#cats)]
-        local amount = crit and 2674 or miss and "Miss" or 1337
+        local text = miss and "Miss" or nil
+        local amount = crit and 2674 or miss and 0 or 1337
         if crit and miss then
             print(amount, crit, miss)
         end
         local guid = (numplates > 0) and UnitGUID(nameplates[random(1,numplates)].UnitFrame.unit) or UnitGUID("target")
         local spellicon = spellid and SpellIconText(spellid) or ""
-        DispatchText(guid, event, amount, spellid, spellicon, crit, miss, pet, school)
+        DispatchText(guid, event, text, amount, spellid, spellicon, crit, miss, pet, school)
     end
 end
 
@@ -1073,18 +1078,18 @@ function f:DamageEvent(guid, spellid, amount, crit, pet, school)
     spellid = spellid or 6603 -- 6603 = Auto Attack
     local event = ((spellid == 75) or (spellid == 6603)) and "auto" or "spell" -- 75 = autoshot
     local spellicon = spellid and SpellIconText(spellid) or ""
-    CacheEvent(guid, event, amount, spellid, spellicon, crit, false, pet, school)
+    CacheEvent(guid, event, amount, nil, spellid, spellicon, crit, false, pet, school)
 end
 function f:MissEvent(guid, spellid, amount, misstype, pet, school)
     spellid = spellid or 6603 -- 6603 = Auto Attack
     local event = ((spellid == 75) or (spellid == 6603)) and "auto" or "spell" -- 75 = autoshot
     local spellicon = spellid and SpellIconText(spellid) or ""
-    CacheEvent(guid, event, strlower(misstype):gsub("^%l", strupper), spellid or 6603, spellicon, false, true, pet, school)
+    CacheEvent(guid, event, 0, strlower(misstype):gsub("^%l", strupper), spellid or 6603, spellicon, false, true, pet, school)
 end
 function f:HealingEvent(guid, spellid, amount, crit, pet, school)
     local event = "heal"
     local spellicon = spellid and SpellIconText(spellid) or ""
-    CacheEvent(guid, event, amount, spellid, spellicon, crit, false, pet, school)
+    CacheEvent(guid, event, amount, nil, spellid, spellicon, crit, false, pet, school)
 end
 
 
