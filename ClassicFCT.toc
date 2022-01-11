@@ -1,11 +1,1 @@
-## Interface: 90105
-## Title: ClassicFCT
-## Notes: Classic Floating Combat Text
-## Author: Discord Hypno#9974, techhypno.com, tehypno@ttv
-## Version: @project-version@
-## SavedVariables: ClassicFCTCustomPresets, ClassicFCTConfig, ClassicFCTVars, ClassicFCTTables
-## SavedVariablesPerCharacter: ClassicFCTCharConfig, ClassicFCTCharVars, ClassicFCTCharTables
-## OptionalDeps: LibStub, CallbackHandler-1.0, LibSharedMedia-3.0
-Libs\libs.xml
-config.lua
-main.lua
+# not used anymore in favor of multi-toc
