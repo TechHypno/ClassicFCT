@@ -2056,8 +2056,8 @@ local function CreateCategoryPanel(self, cat, anchor, point1, point2, x, y)
 
     local animHeader = f:CreateHeader("Animation Settings", "GameFontHighlightSmall", f, "TOPLEFT", "TOPLEFT", 4, -60)
 
-    local animDropDown = f:CreateDropDownMenu("Animations", "Animations", f, "TOPLEFT", "TOPLEFT", -16, -70, AnimationsMenu, function(self)
-        show(self.value)
+    local animDropDown = f:CreateDropDownMenu("Animations", "Animations", f, "TOPLEFT", "TOPLEFT", -16, -70, AnimationsMenu, function(self, e, value)
+        show(value)
         updateStatus()
     end)
     animDropDown:HookScript("OnShow", function(self)
