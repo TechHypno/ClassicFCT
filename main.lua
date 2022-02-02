@@ -608,13 +608,16 @@ local function SpellIconText(spellid)
 end
 
 
-local function GetTypeColor(school)
+local function GetDamageTypeColor(school)
     return CFCT.Config.colorTable[school]
+end
+local function GetDotTypeColor(school)
+    return CFCT.Config.colorTableDot[school]
 end
 
 
-local function DispatchText(guid, event, text, amount, spellid, spellicon, crit, miss, pet, school, count)
-    local cat = (pet and "pet" or "")..event..(crit and "crit" or miss and "miss" or "")
+local function DispatchText(guid, event, text, amount, spellid, spellicon, periodic, crit, miss, pet, school, count)
+    local cat = (pet and "pet" or "")..event..(periodic and "tick" or "")..(crit and "crit" or miss and "miss" or "")
     local fctConfig = CFCT.Config
     local catConfig = fctConfig[cat]
     text = text or tostring(amount)
@@ -646,7 +649,7 @@ local function DispatchText(guid, event, text, amount, spellid, spellicon, crit,
 
     
     local fontColor, fontAlpha
-    local typeColor = GetTypeColor(school)
+    local typeColor = periodic and fctConfig.colorTableDotEnabled and GetDotTypeColor(school) or GetDamageTypeColor(school)
     if (catConfig.colorByType == true) and typeColor then
         local r, g, b, a = CFCT.Color2RGBA((strlen(typeColor) == 6) and "FF"..typeColor or typeColor)
         local a = min(a, select(4, CFCT.Color2RGBA(catConfig.fontColor)))
@@ -683,7 +686,7 @@ local spellIdCache = {}
 CFCT.spellIdCache = spellIdCache
 local eventCache = {}
 CFCT.eventCache = eventCache
-local function CacheEvent(guid, event, amount, text, spellid, spellicon, crit, miss, pet, school)
+local function CacheEvent(guid, event, amount, text, spellid, spellicon, periodic, crit, miss, pet, school)
     if (spellid and not spellIdCache[spellid]) then
         spellIdCache[spellid] = true
         if CFCT.ConfigPanel:IsVisible() then
@@ -722,6 +725,7 @@ local function CacheEvent(guid, event, amount, text, spellid, spellicon, crit, m
         text = text,
         spellid = spellid,
         spellicon = spellicon,
+        periodic = periodic,
         crit = crit,
         miss = miss,
         pet = pet,
@@ -746,7 +750,7 @@ local function ProcessCachedEvents()
                 local merge
                 for _,e in ipairs(record.events) do
                     if e.miss and separateMisses then
-                        DispatchText(e.guid, e.event, e.text, e.amount, e.spellid, e.spellicon, e.crit, e.miss, e.pet, e.school)
+                        DispatchText(e.guid, e.event, e.text, e.amount, e.spellid, e.spellicon, e.periodic, e.crit, e.miss, e.pet, e.school)
                     elseif not merge then
                         merge = e
                     else
@@ -754,18 +758,19 @@ local function ProcessCachedEvents()
                         merge.text = merge.text or e.text
                         merge.count = merge.count + 1
                         merge.crit = merge.crit or e.crit
+                        merge.periodic = merge.periodic and e.periodic
                     end
                 end
                 if merge then
                     local text = (merge.amount ~= 0) and merge.amount or merge.text
-                    DispatchText(merge.guid, merge.event, text, merge.amount, merge.spellid, merge.spellicon, merge.crit, merge.miss, merge.pet, merge.school, merge.count)
+                    DispatchText(merge.guid, merge.event, text, merge.amount, merge.spellid, merge.spellicon, merge.periodic, merge.crit, merge.miss, merge.pet, merge.school, merge.count)
                 end
                 eventCache[id] = nil
             end
         else
             for _,e in ipairs(record.events) do
                 local text = (e.amount ~= 0) and e.amount or e.text
-                DispatchText(e.guid, e.event, e.text, e.amount, e.spellid, e.spellicon, e.crit, e.miss, e.pet, e.school)
+                DispatchText(e.guid, e.event, e.text, e.amount, e.spellid, e.spellicon, e.periodic, e.crit, e.miss, e.pet, e.school)
             end
             eventCache[id] = nil
         end
@@ -797,13 +802,14 @@ function CFCT:Test(n)
         local miss = not crit and (random(1,2) == 1)
         local event = cats[random(1,#cats)]
         local text = miss and "Miss" or nil
+        local periodic = (random(1,3) == 1) and event == "spell"
         local amount = crit and 2674 or miss and 0 or 1337
         if crit and miss then
             print(amount, crit, miss)
         end
         local guid = (numplates > 0) and UnitGUID(nameplates[random(1,numplates)].UnitFrame.unit) or UnitGUID("target")
         local spellicon = spellid and SpellIconText(spellid) or ""
-        DispatchText(guid, event, text, amount, spellid, spellicon, crit, miss, pet, school)
+        DispatchText(guid, event, text, amount, spellid, spellicon, periodic, crit, miss, pet, school)
     end
 end
 
@@ -927,11 +933,8 @@ function f:ADDON_LOADED(name)
                 CFCT:Log(GetAddOnMetadata(addonName, "Version")..[[
 
 Recent changes:
-    R0.86a   Nov 6, 2021
-        - Added spell icon support for autoattacks and autoshots
-        - Added the option to override merge interval per spellid
-        - Added spellid blacklisting as a filter option
-        - Added spell icon formatting options - Credit: https://github.com/akbyrd)]])
+    M0.87a   Feb 2, 2022
+        - Periodic effects can now be customised separetely, including damage type colors]])
             end)
         end
         CFCT.lastVersion = version
@@ -1046,27 +1049,30 @@ function f:COMBAT_LOG_EVENT_UNFILTERED()
     local guid = destGUID
     if CLEU_DAMAGE_EVENT[cleuEvent] then
         if CLEU_SWING_EVENT[cleuEvent] then
-            local amount,overkill,school,resist,block,absorb,crit = arg12,arg13,arg14,arg15,arg16,arg17,arg18
-            self:DamageEvent(guid, nil, amount, crit, petEvent, school)
+            local amount,overkill,school,resist,block,absorb,crit,glancing,crushing,offhand = arg12,arg13,arg14,arg15,arg16,arg17,arg18,arg19,arg20,arg21
+            self:DamageEvent(guid, nil, amount, nil, crit, petEvent, school)
         else --its a SPELL event
-            local spellid,spellname,school1,amount,overkill,school2,resist,block,absorb,crit = arg12,arg13,arg14,arg15,arg16,arg17,arg18,arg19,arg20,arg21
-            self:DamageEvent(guid, spellid, amount, crit, petEvent, school1)
+            local periodic = cleuEvent:find("SPELL_PERIODIC", 1, true)
+            local spellid,spellname,school1,amount,overkill,school2,resist,block,absorb,crit,glancing,crushing,offhand = arg12,arg13,arg14,arg15,arg16,arg17,arg18,arg19,arg20,arg21,arg22,arg23,arg24
+            self:DamageEvent(guid, spellid, amount, periodic, crit, petEvent, school1)
         end
     elseif CLEU_MISS_EVENT[cleuEvent] then
         if CLEU_SWING_EVENT[cleuEvent] then
             local misstype,_,amount = arg12,arg13,arg14
-            self:MissEvent(guid, nil, amount, misstype, petEvent, SCHOOL_MASK_PHYSICAL)
+            self:MissEvent(guid, nil, amount, nil, misstype, petEvent, SCHOOL_MASK_PHYSICAL)
         else --its a SPELL event
+            local periodic = cleuEvent:find("SPELL_PERIODIC", 1, true)
             local spellid,spellname,school1,misstype,_,amount = arg12,arg13,arg14,arg15,arg16,arg17
-            self:MissEvent(guid, spellid, amount, misstype, petEvent, school1)
+            self:MissEvent(guid, spellid, amount, periodic, misstype, petEvent, school1)
         end
     elseif CLEU_HEALING_EVENT[cleuEvent] then
         if CLEU_SWING_EVENT[cleuEvent] then
             local amount,overheal,absorb,crit = arg12,arg13,arg14,arg15
-            self:HealingEvent(guid, nil, amount, crit, petEvent, nil)
+            self:HealingEvent(guid, nil, amount, nil, crit, petEvent, nil)
         else --its a SPELL event
+            local periodic = cleuEvent:find("SPELL_PERIODIC", 1, true)
             local spellid,spellname,school1,amount,overheal,absorb,crit = arg12,arg13,arg14,arg15,arg16,arg17,arg18
-            self:HealingEvent(guid, spellid, amount, crit, petEvent, school1)
+            self:HealingEvent(guid, spellid, amount, periodic, crit, petEvent, school1)
         end
     end
 end
@@ -1074,22 +1080,22 @@ end
 
 
 
-function f:DamageEvent(guid, spellid, amount, crit, pet, school)
+function f:DamageEvent(guid, spellid, amount, periodic, crit, pet, school, dot)
     spellid = spellid or 6603 -- 6603 = Auto Attack
     local event = ((spellid == 75) or (spellid == 6603)) and "auto" or "spell" -- 75 = autoshot
     local spellicon = spellid and SpellIconText(spellid) or ""
-    CacheEvent(guid, event, amount, nil, spellid, spellicon, crit, false, pet, school)
+    CacheEvent(guid, event, amount, nil, spellid, spellicon, periodic, crit, false, pet, school)
 end
-function f:MissEvent(guid, spellid, amount, misstype, pet, school)
+function f:MissEvent(guid, spellid, amount, periodic, misstype, pet, school)
     spellid = spellid or 6603 -- 6603 = Auto Attack
     local event = ((spellid == 75) or (spellid == 6603)) and "auto" or "spell" -- 75 = autoshot
     local spellicon = spellid and SpellIconText(spellid) or ""
-    CacheEvent(guid, event, 0, strlower(misstype):gsub("^%l", strupper), spellid or 6603, spellicon, false, true, pet, school)
+    CacheEvent(guid, event, 0, strlower(misstype):gsub("^%l", strupper), spellid or 6603, spellicon, periodic, false, true, pet, school)
 end
-function f:HealingEvent(guid, spellid, amount, crit, pet, school)
+function f:HealingEvent(guid, spellid, amount, periodic, crit, pet, school)
     local event = "heal"
     local spellicon = spellid and SpellIconText(spellid) or ""
-    CacheEvent(guid, event, amount, nil, spellid, spellicon, crit, false, pet, school)
+    CacheEvent(guid, event, amount, nil, spellid, spellicon, periodic, crit, false, pet, school)
 end
 
 

@@ -1,3 +1,6 @@
+R0.87a   Feb 2, 2022
+    - Periodic effects can now be customised separetely, including damage type colors
+
 0.86d   Nov 10, 2021
     - Added option for separating misses from merged events - Credit: https://github.com/akbyrd
 

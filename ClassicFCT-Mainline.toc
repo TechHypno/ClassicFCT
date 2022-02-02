@@ -6,6 +6,12 @@
 ## SavedVariables: ClassicFCTCustomPresets, ClassicFCTConfig, ClassicFCTVars, ClassicFCTTables
 ## SavedVariablesPerCharacter: ClassicFCTCharConfig, ClassicFCTCharVars, ClassicFCTCharTables
 ## OptionalDeps: LibStub, CallbackHandler-1.0, LibSharedMedia-3.0
+
 Libs\libs.xml
+
+presets.lua
+Presets\presets.xml
+
 config.lua
+
 main.lua

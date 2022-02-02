@@ -4,992 +4,7 @@ local GetSpellInfo = GetSpellInfo
 local IsRetail = (WOW_PROJECT_ID == WOW_PROJECT_MAINLINE)
 local IsClassic = (WOW_PROJECT_ID == WOW_PROJECT_CLASSIC)
 local IsBCC = (WOW_PROJECT_ID == WOW_PROJECT_BURNING_CRUSADE_CLASSIC)
-local DefaultPresets = {
-    ["Classic"] = {
-        animSpeed = 1,
-        animDuration = 1.5,
-        areaX = 0,
-        areaY = 150,
-        areaNX = 0,
-        areaNY = 0,
-        textStrata = "MEDIUM",
-        dontOverlapNameplates = false,
-        inheritNameplates = false,
-        preventOverlap = true,
-        preventOverlapSpacingX = 30,
-        preventOverlapSpacingY = 50,
-        attachMode = "tn",
-        attachModeFallback = true,
-        spellIconOffsetX = 0,
-        spellIconOffsetY = 0,
-        spellIconZoom = 1,
-        spellIconAspectRatio = 1,
-        abbreviateNumbers = false,
-        kiloSeparator = false,
-        filterAbsoluteEnabled = false,
-        filterAbsoluteThreshold = 100,
-        filterRelativeEnabled = false,
-        filterRelativeThreshold = 10,
-        filterAverageEnabled = false,
-        filterAverageThreshold = 10,
-        filterMissesEnabled = false,
-        sortByDamage = false,
-        sortMissPrio = false,
-        mergeEvents = false,
-        mergeEventsInterval = 0.1,
-        mergeEventsIntervalMode = "last",
-        mergeEventsCounter = true,
-        mergeEventsByGuid = false,
-        mergeEventsBySpellID = false,
-        mergeEventsBySpellIcon = true,
-        mergeEventsBySchool = true,
-        mergeEventsMisses = false,
-        colorTable = {
-            -- Single Schools
-            [Enum.Damageclass.MaskPhysical]	    = "ffff0000",
-            [Enum.Damageclass.MaskHoly]		    = "ffffffb6",
-            [Enum.Damageclass.MaskFire]		    = "ffff432c",
-            [Enum.Damageclass.MaskNature]	    = "ff3c9742",
-            [Enum.Damageclass.MaskFrost]	    = "ff00abff",
-            [Enum.Damageclass.MaskShadow]	    = "ff9500b6",
-            [Enum.Damageclass.MaskArcane]	    = "ffdd4aff",
-            -- Physical and a Magical
-            [Enum.Damageclass.MaskFlamestrike]	= "ffff8879",
-            [Enum.Damageclass.MaskFroststrike]	= "ff7dd5ff",
-            [Enum.Damageclass.MaskSpellstrike]	= "ffa8caff",
-            [Enum.Damageclass.MaskStormstrike]	= "ffa1eaa3",
-            [Enum.Damageclass.MaskShadowstrike]	= "ffa89cff",
-            [Enum.Damageclass.MaskHolystrike]	= "ffffffe6",
-            -- Two Magical Schools
-            [Enum.Damageclass.MaskFrostfire]	= "ffff64ab",
-            [Enum.Damageclass.MaskSpellfire]	= "ffff4d5c",
-            [Enum.Damageclass.MaskFirestorm]	= "ffdfcfb6",
-            [Enum.Damageclass.MaskShadowflame]	= "ffb92334",
-            [Enum.Damageclass.MaskHolyfire]		= "ffffca68",
-            [Enum.Damageclass.MaskSpellfrost]	= "ff828ffd",
-            [Enum.Damageclass.MaskFroststorm]	= "ff5de1de",
-            [Enum.Damageclass.MaskShadowfrost]	= "ff3a00e5",
-            [Enum.Damageclass.MaskHolyfrost]	= "ffbffffc",
-            [Enum.Damageclass.MaskSpellstorm]	= "ff3f45ff",
-            [Enum.Damageclass.MaskSpellshadow]	= "ff0009ff",
-            [Enum.Damageclass.MaskDivine]		= "fffff9ed",
-            [Enum.Damageclass.MaskShadowstorm]	= "ff462b68",
-            [Enum.Damageclass.MaskHolystorm]	= "ffe9ffa9",
-            [Enum.Damageclass.MaskTwilight]	    = "ff242d8d",
-            -- Three or more schools
-            [Enum.Damageclass.MaskElemental]	= "ffffa500",
-            [Enum.Damageclass.MaskChromatic]    = "ffffffff",
-            [Enum.Damageclass.MaskMagical]      = "ff97f4ff",
-            [Enum.Damageclass.MaskChaos]        = "ff8000ff"
-        },
-        auto = {
-            enabled = true,
-            fontPath = "Fonts\\FRIZQT__.TTF",
-            fontSize = 42,
-            fontStyle = "",
-            fontColor = "FFFFFFFF",
-            showIcons = false,
-            colorByType = false,
-            FadeIn = {
-                enabled = true,
-                duration = 0.07
-            },
-            FadeOut = {
-                enabled = true,
-                duration = 0.3
-            },
-            Scroll = {
-                enabled = true,
-                direction = "UP",
-                distance = 32
-            }
-        },  
-        automiss = {
-            enabled = true,
-            fontPath = "Fonts\\FRIZQT__.TTF",
-            fontSize = 42,
-            fontStyle = "",
-            fontColor = "FFFFFFFF",
-            showIcons = false,
-            colorByType = false,
-            FadeIn = {
-                enabled = true,
-                duration = 0.07
-            },
-            FadeOut = {
-                enabled = true,
-                duration = 0.3
-            },
-            Scroll = {
-                enabled = true,
-                direction = "UP",
-                distance = 32
-            }
-        },  
-        autocrit = {
-            enabled = true,
-            fontPath = "Fonts\\FRIZQT__.TTF",
-            fontSize = 60,
-            fontStyle = "",
-            fontColor = "FFFFFFFF",
-            showIcons = false,
-            colorByType = false,
-            Pow = {
-                enabled = true,
-                initScale = 0.25,
-                midScale = 1.55,
-                endScale = 1,
-                duration = 0.3,
-                inOutRatio = 0.7
-            },
-            FadeIn = {
-                enabled = true,
-                duration = 0.07
-            },
-            FadeOut = {
-                enabled = true,
-                duration = 0.3
-            }
-        },
-        petauto = {
-            enabled = true,
-            fontPath = "Fonts\\FRIZQT__.TTF",
-            fontSize = 42,
-            fontStyle = "",
-            fontColor = "FFFF9D00",
-            showIcons = false,
-            colorByType = false,
-            FadeIn = {
-                enabled = true,
-                duration = 0.07
-            },
-            FadeOut = {
-                enabled = true,
-                duration = 0.3
-            },
-            Scroll = {
-                enabled = true,
-                direction = "UP",
-                distance = 32
-            }
-        },  
-        petautomiss = {
-            enabled = true,
-            fontPath = "Fonts\\FRIZQT__.TTF",
-            fontSize = 42,
-            fontStyle = "",
-            fontColor = "FFFF9D00",
-            showIcons = false,
-            colorByType = false,
-            FadeIn = {
-                enabled = true,
-                duration = 0.07
-            },
-            FadeOut = {
-                enabled = true,
-                duration = 0.3
-            },
-            Scroll = {
-                enabled = true,
-                direction = "UP",
-                distance = 32
-            }
-        },  
-        petautocrit = {
-            enabled = true,
-            fontPath = "Fonts\\FRIZQT__.TTF",
-            fontSize = 60,
-            fontStyle = "",
-            fontColor = "FFFF9D00",
-            showIcons = false,
-            colorByType = false,
-            Pow = {
-                enabled = true,
-                initScale = 0.25,
-                midScale = 1.55,
-                endScale = 1,
-                duration = 0.3,
-                inOutRatio = 0.7
-            },
-            FadeIn = {
-                enabled = true,
-                duration = 0.07
-            },
-            FadeOut = {
-                enabled = true,
-                duration = 0.3
-            }
-        },
-        spell = {
-            enabled = true,
-            fontPath = "Fonts\\FRIZQT__.TTF",
-            fontSize = 42,
-            fontStyle = "",
-            fontColor = "FFFFE800",
-            showIcons = false,
-            colorByType = false,
-            FadeIn = {
-                enabled = true,
-                duration = 0.07
-            },
-            FadeOut = {
-                enabled = true,
-                duration = 0.3
-            },
-            Scroll = {
-                enabled = true,
-                direction = "UP",
-                distance = 32
-            }
-        },
-        spellmiss = {
-            enabled = true,
-            fontPath = "Fonts\\FRIZQT__.TTF",
-            fontSize = 42,
-            fontStyle = "",
-            fontColor = "FFFFE800",
-            showIcons = false,
-            colorByType = false,
-            FadeIn = {
-                enabled = true,
-                duration = 0.07
-            },
-            FadeOut = {
-                enabled = true,
-                duration = 0.3
-            },
-            Scroll = {
-                enabled = true,
-                direction = "UP",
-                distance = 32
-            }
-        },
-        spellcrit = {
-            enabled = true,
-            fontPath = "Fonts\\FRIZQT__.TTF",
-            fontSize = 60,
-            fontStyle = "",
-            fontColor = "FFFFE800",
-            showIcons = false,
-            colorByType = false,
-            Pow = {
-                enabled = true,
-                initScale = 0.25,
-                midScale = 1.55,
-                endScale = 1,
-                duration = 0.3,
-                inOutRatio = 0.7
-            },
-            FadeIn = {
-                enabled = true,
-                duration = 0.07
-            },
-            FadeOut = {
-                enabled = true,
-                duration = 0.3
-            }
-        },
-        petspell = {
-            enabled = true,
-            fontPath = "Fonts\\FRIZQT__.TTF",
-            fontSize = 42,
-            fontStyle = "",
-            fontColor = "FFFFE800",
-            showIcons = false,
-            colorByType = false,
-            FadeIn = {
-                enabled = true,
-                duration = 0.07
-            },
-            FadeOut = {
-                enabled = true,
-                duration = 0.3
-            },
-            Scroll = {
-                enabled = true,
-                direction = "UP",
-                distance = 32
-            }
-        },
-        petspellmiss = {
-            enabled = true,
-            fontPath = "Fonts\\FRIZQT__.TTF",
-            fontSize = 42,
-            fontStyle = "",
-            fontColor = "FFFFE800",
-            showIcons = false,
-            colorByType = false,
-            FadeIn = {
-                enabled = true,
-                duration = 0.07
-            },
-            FadeOut = {
-                enabled = true,
-                duration = 0.3
-            },
-            Scroll = {
-                enabled = true,
-                direction = "UP",
-                distance = 32
-            }
-        },
-        petspellcrit = {
-            enabled = true,
-            fontPath = "Fonts\\FRIZQT__.TTF",
-            fontSize = 60,
-            fontStyle = "",
-            fontColor = "FFFFE800",
-            showIcons = false,
-            colorByType = false,
-            Pow = {
-                enabled = true,
-                initScale = 0.25,
-                midScale = 1.55,
-                endScale = 1,
-                duration = 0.3,
-                inOutRatio = 0.7
-            },
-            FadeIn = {
-                enabled = true,
-                duration = 0.07
-            },
-            FadeOut = {
-                enabled = true,
-                duration = 0.3
-            }
-        },
-        heal = {
-            enabled = true,
-            fontPath = "Fonts\\FRIZQT__.TTF",
-            fontSize = 42,
-            fontStyle = "",
-            fontColor = "FF00FF00",
-            showIcons = false,
-            colorByType = false,
-            FadeIn = {
-                enabled = true,
-                duration = 0.07
-            },
-            FadeOut = {
-                enabled = true,
-                duration = 0.3
-            },
-            Scroll = {
-                enabled = true,
-                direction = "UP",
-                distance = 32
-            }
-        },
-        healmiss = {
-            enabled = true,
-            fontPath = "Fonts\\FRIZQT__.TTF",
-            fontSize = 42,
-            fontStyle = "",
-            fontColor = "FF00FF00",
-            showIcons = false,
-            colorByType = false,
-            FadeIn = {
-                enabled = true,
-                duration = 0.07
-            },
-            FadeOut = {
-                enabled = true,
-                duration = 0.3
-            },
-            Scroll = {
-                enabled = true,
-                direction = "UP",
-                distance = 32
-            }
-        },
-        healcrit = {
-            enabled = true,
-            fontPath = "Fonts\\FRIZQT__.TTF",
-            fontSize = 60,
-            fontStyle = "",
-            fontColor = "FF00FF00",
-            showIcons = false,
-            colorByType = false,
-            Pow = {
-                enabled = true,
-                initScale = 0.25,
-                midScale = 1.55,
-                endScale = 1,
-                duration = 0.3,
-                inOutRatio = 0.7
-            },
-            FadeIn = {
-                enabled = true,
-                duration = 0.07
-            },
-            FadeOut = {
-                enabled = true,
-                duration = 0.3
-            }
-        },
-        petheal = {
-            enabled = true,
-            fontPath = "Fonts\\FRIZQT__.TTF",
-            fontSize = 42,
-            fontStyle = "",
-            fontColor = "FF00FF00",
-            showIcons = false,
-            colorByType = false,
-            FadeIn = {
-                enabled = true,
-                duration = 0.07
-            },
-            FadeOut = {
-                enabled = true,
-                duration = 0.3
-            },
-            Scroll = {
-                enabled = true,
-                direction = "UP",
-                distance = 32
-            }
-        },
-        pethealmiss = {
-            enabled = true,
-            fontPath = "Fonts\\FRIZQT__.TTF",
-            fontSize = 42,
-            fontStyle = "",
-            fontColor = "FF00FF00",
-            showIcons = false,
-            colorByType = false,
-            FadeIn = {
-                enabled = true,
-                duration = 0.07
-            },
-            FadeOut = {
-                enabled = true,
-                duration = 0.3
-            },
-            Scroll = {
-                enabled = true,
-                direction = "UP",
-                distance = 32
-            }
-        },
-        pethealcrit = {
-            enabled = true,
-            fontPath = "Fonts\\FRIZQT__.TTF",
-            fontSize = 60,
-            fontStyle = "",
-            fontColor = "FF00FF00",
-            showIcons = false,
-            colorByType = false,
-            Pow = {
-                enabled = true,
-                initScale = 0.25,
-                midScale = 1.55,
-                endScale = 1,
-                duration = 0.3,
-                inOutRatio = 0.7
-            },
-            FadeIn = {
-                enabled = true,
-                duration = 0.07
-            },
-            FadeOut = {
-                enabled = true,
-                duration = 0.3
-            }
-        }
-    },
-    ["Mists of Pandaria"] = {
-        animSpeed = 1,
-        animDuration = 1.5,
-        areaX = 0,
-        areaY = 150,
-        areaNX = 0,
-        areaNY = 0,
-        textStrata = "MEDIUM",
-        dontOverlapNameplates = false,
-        inheritNameplates = false,
-        preventOverlap = true,
-        preventOverlapSpacingX = 30,
-        preventOverlapSpacingY = 50,
-        attachMode = "tn",
-        attachModeFallback = true,
-        spellIconOffsetX = 0,
-        spellIconOffsetY = 0,
-        spellIconZoom = 1,
-        spellIconAspectRatio = 1,
-        abbreviateNumbers = false,
-        kiloSeparator = false,
-        filterAbsoluteEnabled = false,
-        filterAbsoluteThreshold = 100,
-        filterRelativeEnabled = false,
-        filterRelativeThreshold = 10,
-        filterAverageEnabled = false,
-        filterAverageThreshold = 10,
-        filterMissesEnabled = false,
-        sortByDamage = false,
-        sortMissPrio = false,
-        mergeEvents = false,
-        mergeEventsInterval = 0.1,
-        mergeEventsIntervalMode = "last",
-        mergeEventsCounter = true,
-        mergeEventsByGuid = false,
-        mergeEventsBySpellID = false,
-        mergeEventsBySpellIcon = true,
-        mergeEventsBySchool = true,
-        mergeEventsMisses = false,
-        colorTable = {
-            -- Single Schools
-            [Enum.Damageclass.MaskPhysical]	    = "ffff0000",
-            [Enum.Damageclass.MaskHoly]		    = "ffffffb6",
-            [Enum.Damageclass.MaskFire]		    = "ffff432c",
-            [Enum.Damageclass.MaskNature]	    = "ff3c9742",
-            [Enum.Damageclass.MaskFrost]	    = "ff00abff",
-            [Enum.Damageclass.MaskShadow]	    = "ff9500b6",
-            [Enum.Damageclass.MaskArcane]	    = "ffdd4aff",
-            -- Physical and a Magical
-            [Enum.Damageclass.MaskFlamestrike]	= "ffff8879",
-            [Enum.Damageclass.MaskFroststrike]	= "ff7dd5ff",
-            [Enum.Damageclass.MaskSpellstrike]	= "ffa8caff",
-            [Enum.Damageclass.MaskStormstrike]	= "ffa1eaa3",
-            [Enum.Damageclass.MaskShadowstrike]	= "ffa89cff",
-            [Enum.Damageclass.MaskHolystrike]	= "ffffffe6",
-            -- Two Magical Schools
-            [Enum.Damageclass.MaskFrostfire]	= "ffff64ab",
-            [Enum.Damageclass.MaskSpellfire]	= "ffff4d5c",
-            [Enum.Damageclass.MaskFirestorm]	= "ffdfcfb6",
-            [Enum.Damageclass.MaskShadowflame]	= "ffb92334",
-            [Enum.Damageclass.MaskHolyfire]		= "ffffca68",
-            [Enum.Damageclass.MaskSpellfrost]	= "ff828ffd",
-            [Enum.Damageclass.MaskFroststorm]	= "ff5de1de",
-            [Enum.Damageclass.MaskShadowfrost]	= "ff3a00e5",
-            [Enum.Damageclass.MaskHolyfrost]	= "ffbffffc",
-            [Enum.Damageclass.MaskSpellstorm]	= "ff3f45ff",
-            [Enum.Damageclass.MaskSpellshadow]	= "ff0009ff",
-            [Enum.Damageclass.MaskDivine]		= "fffff9ed",
-            [Enum.Damageclass.MaskShadowstorm]	= "ff462b68",
-            [Enum.Damageclass.MaskHolystorm]	= "ffe9ffa9",
-            [Enum.Damageclass.MaskTwilight]	    = "ff242d8d",
-            -- Three or more schools
-            [Enum.Damageclass.MaskElemental]	= "ffffa500",
-            [Enum.Damageclass.MaskChromatic]    = "ffffffff",
-            [Enum.Damageclass.MaskMagical]      = "ff97f4ff",
-            [Enum.Damageclass.MaskChaos]        = "ff8000ff"
-        },
-        auto = {
-            enabled = true,
-            fontPath = "Fonts\\FRIZQT__.TTF",
-            fontSize = 42,
-            fontStyle = "",
-            fontColor = "FFFFFFFF",
-            showIcons = false,
-            colorByType = false,
-            FadeIn = {
-                enabled = true,
-                duration = 0.07
-            },
-            FadeOut = {
-                enabled = true,
-                duration = 0.3
-            },
-            Scroll = {
-                enabled = true,
-                direction = "UP",
-                distance = 32
-            }
-        },  
-        automiss = {
-            enabled = true,
-            fontPath = "Fonts\\FRIZQT__.TTF",
-            fontSize = 42,
-            fontStyle = "",
-            fontColor = "FFFFFFFF",
-            showIcons = false,
-            colorByType = false,
-            FadeIn = {
-                enabled = true,
-                duration = 0.07
-            },
-            FadeOut = {
-                enabled = true,
-                duration = 0.3
-            },
-            Scroll = {
-                enabled = true,
-                direction = "UP",
-                distance = 32
-            }
-        },  
-        autocrit = {
-            enabled = true,
-            fontPath = "Fonts\\FRIZQT__.TTF",
-            fontSize = 60,
-            fontStyle = "",
-            fontColor = "FFFFFFFF",
-            showIcons = false,
-            colorByType = false,
-            Pow = {
-                enabled = true,
-                initScale = 1.8,
-                midScale = 1.6,
-                endScale = 1,
-                duration = 0.16,
-                inOutRatio = 0.3
-            },
-            FadeIn = {
-                enabled = true,
-                duration = 0.07
-            },
-            FadeOut = {
-                enabled = true,
-                duration = 0.3
-            }
-        },
-        petauto = {
-            enabled = true,
-            fontPath = "Fonts\\FRIZQT__.TTF",
-            fontSize = 42,
-            fontStyle = "",
-            fontColor = "FFFF9D00",
-            showIcons = false,
-            colorByType = false,
-            FadeIn = {
-                enabled = true,
-                duration = 0.07
-            },
-            FadeOut = {
-                enabled = true,
-                duration = 0.3
-            },
-            Scroll = {
-                enabled = true,
-                direction = "UP",
-                distance = 32
-            }
-        },  
-        petautomiss = {
-            enabled = true,
-            fontPath = "Fonts\\FRIZQT__.TTF",
-            fontSize = 42,
-            fontStyle = "",
-            fontColor = "FFFF9D00",
-            showIcons = false,
-            colorByType = false,
-            FadeIn = {
-                enabled = true,
-                duration = 0.07
-            },
-            FadeOut = {
-                enabled = true,
-                duration = 0.3
-            },
-            Scroll = {
-                enabled = true,
-                direction = "UP",
-                distance = 32
-            }
-        },  
-        petautocrit = {
-            enabled = true,
-            fontPath = "Fonts\\FRIZQT__.TTF",
-            fontSize = 60,
-            fontStyle = "",
-            fontColor = "FFFF9D00",
-            showIcons = false,
-            colorByType = false,
-            Pow = {
-                enabled = true,
-                initScale = 1.8,
-                midScale = 1.6,
-                endScale = 1,
-                duration = 0.16,
-                inOutRatio = 0.3
-            },
-            FadeIn = {
-                enabled = true,
-                duration = 0.07
-            },
-            FadeOut = {
-                enabled = true,
-                duration = 0.3
-            }
-        },
-        spell = {
-            enabled = true,
-            fontPath = "Fonts\\FRIZQT__.TTF",
-            fontSize = 42,
-            fontStyle = "",
-            fontColor = "FFFFE800",
-            showIcons = false,
-            colorByType = false,
-            FadeIn = {
-                enabled = true,
-                duration = 0.07
-            },
-            FadeOut = {
-                enabled = true,
-                duration = 0.3
-            },
-            Scroll = {
-                enabled = true,
-                direction = "UP",
-                distance = 32
-            }
-        },
-        spellmiss = {
-            enabled = true,
-            fontPath = "Fonts\\FRIZQT__.TTF",
-            fontSize = 42,
-            fontStyle = "",
-            fontColor = "FFFFE800",
-            showIcons = false,
-            colorByType = false,
-            FadeIn = {
-                enabled = true,
-                duration = 0.07
-            },
-            FadeOut = {
-                enabled = true,
-                duration = 0.3
-            },
-            Scroll = {
-                enabled = true,
-                direction = "UP",
-                distance = 32
-            }
-        },
-        spellcrit = {
-            enabled = true,
-            fontPath = "Fonts\\FRIZQT__.TTF",
-            fontSize = 60,
-            fontStyle = "",
-            fontColor = "FFFFE800",
-            showIcons = false,
-            colorByType = false,
-            Pow = {
-                enabled = true,
-                initScale = 1.8,
-                midScale = 1.6,
-                endScale = 1,
-                duration = 0.16,
-                inOutRatio = 0.3
-            },
-            FadeIn = {
-                enabled = true,
-                duration = 0.07
-            },
-            FadeOut = {
-                enabled = true,
-                duration = 0.3
-            }
-        },
-        petspell = {
-            enabled = true,
-            fontPath = "Fonts\\FRIZQT__.TTF",
-            fontSize = 42,
-            fontStyle = "",
-            fontColor = "FFFFE800",
-            showIcons = false,
-            colorByType = false,
-            FadeIn = {
-                enabled = true,
-                duration = 0.07
-            },
-            FadeOut = {
-                enabled = true,
-                duration = 0.3
-            },
-            Scroll = {
-                enabled = true,
-                direction = "UP",
-                distance = 32
-            }
-        },
-        petspellmiss = {
-            enabled = true,
-            fontPath = "Fonts\\FRIZQT__.TTF",
-            fontSize = 42,
-            fontStyle = "",
-            fontColor = "FFFFE800",
-            showIcons = false,
-            colorByType = false,
-            FadeIn = {
-                enabled = true,
-                duration = 0.07
-            },
-            FadeOut = {
-                enabled = true,
-                duration = 0.3
-            },
-            Scroll = {
-                enabled = true,
-                direction = "UP",
-                distance = 32
-            }
-        },
-        petspellcrit = {
-            enabled = true,
-            fontPath = "Fonts\\FRIZQT__.TTF",
-            fontSize = 60,
-            fontStyle = "",
-            fontColor = "FFFFE800",
-            showIcons = false,
-            colorByType = false,
-            Pow = {
-                enabled = true,
-                initScale = 1.8,
-                midScale = 1.6,
-                endScale = 1,
-                duration = 0.16,
-                inOutRatio = 0.3
-            },
-            FadeIn = {
-                enabled = true,
-                duration = 0.07
-            },
-            FadeOut = {
-                enabled = true,
-                duration = 0.3
-            }
-        },
-        heal = {
-            enabled = true,
-            fontPath = "Fonts\\FRIZQT__.TTF",
-            fontSize = 42,
-            fontStyle = "",
-            fontColor = "FF00FF00",
-            showIcons = false,
-            colorByType = false,
-            FadeIn = {
-                enabled = true,
-                duration = 0.07
-            },
-            FadeOut = {
-                enabled = true,
-                duration = 0.3
-            },
-            Scroll = {
-                enabled = true,
-                direction = "UP",
-                distance = 32
-            }
-        },
-        healmiss = {
-            enabled = true,
-            fontPath = "Fonts\\FRIZQT__.TTF",
-            fontSize = 42,
-            fontStyle = "",
-            fontColor = "FF00FF00",
-            showIcons = false,
-            colorByType = false,
-            FadeIn = {
-                enabled = true,
-                duration = 0.07
-            },
-            FadeOut = {
-                enabled = true,
-                duration = 0.3
-            },
-            Scroll = {
-                enabled = true,
-                direction = "UP",
-                distance = 32
-            }
-        },
-        healcrit = {
-            enabled = true,
-            fontPath = "Fonts\\FRIZQT__.TTF",
-            fontSize = 60,
-            fontStyle = "",
-            fontColor = "FF00FF00",
-            showIcons = false,
-            colorByType = false,
-            Pow = {
-                enabled = true,
-                initScale = 1.8,
-                midScale = 1.6,
-                endScale = 1,
-                duration = 0.16,
-                inOutRatio = 0.3
-            },
-            FadeIn = {
-                enabled = true,
-                duration = 0.07
-            },
-            FadeOut = {
-                enabled = true,
-                duration = 0.3
-            }
-        },
-        petheal = {
-            enabled = true,
-            fontPath = "Fonts\\FRIZQT__.TTF",
-            fontSize = 42,
-            fontStyle = "",
-            fontColor = "FF00FF00",
-            showIcons = false,
-            colorByType = false,
-            FadeIn = {
-                enabled = true,
-                duration = 0.07
-            },
-            FadeOut = {
-                enabled = true,
-                duration = 0.3
-            },
-            Scroll = {
-                enabled = true,
-                direction = "UP",
-                distance = 32
-            }
-        },
-        pethealmiss = {
-            enabled = true,
-            fontPath = "Fonts\\FRIZQT__.TTF",
-            fontSize = 42,
-            fontStyle = "",
-            fontColor = "FF00FF00",
-            showIcons = false,
-            colorByType = false,
-            FadeIn = {
-                enabled = true,
-                duration = 0.07
-            },
-            FadeOut = {
-                enabled = true,
-                duration = 0.3
-            },
-            Scroll = {
-                enabled = true,
-                direction = "UP",
-                distance = 32
-            }
-        },
-        pethealcrit = {
-            enabled = true,
-            fontPath = "Fonts\\FRIZQT__.TTF",
-            fontSize = 60,
-            fontStyle = "",
-            fontColor = "FF00FF00",
-            showIcons = false,
-            colorByType = false,
-            Pow = {
-                enabled = true,
-                initScale = 1.8,
-                midScale = 1.6,
-                endScale = 1,
-                duration = 0.16,
-                inOutRatio = 0.3
-            },
-            FadeIn = {
-                enabled = true,
-                duration = 0.07
-            },
-            FadeOut = {
-                enabled = true,
-                duration = 0.3
-            }
-        }
-    }
-}
+local DefaultPresets = CFCT:GetDefaultPresets()
 local DefaultConfig = DefaultPresets["Mists of Pandaria"]
 local DefaultVars = {
     enabled = true,
@@ -1823,6 +838,7 @@ local function CreateColorOption(self, label, tooltip, parent, point1, point2, x
     tex:SetPoint("CENTER", preview)
     tex:Show()
 
+    -- checkerboard alpha background
     local ch = btn:CreateTexture(nil, "BACKGROUND")
 	preview.ch = ch
 	ch:SetWidth(16)
@@ -1842,6 +858,18 @@ local function CreateColorOption(self, label, tooltip, parent, point1, point2, x
 	lbl:SetPoint("LEFT", preview, "RIGHT", 2, 0)
     lbl:SetPoint("RIGHT")
     lbl:SetText(label)
+
+    btn._Disable = btn.Disable
+    btn.Disable = function(self)
+        self:_Disable()
+        lbl:SetTextColor(0.5, 0.5, 0.5)
+    end
+    btn._Enable = btn.Enable
+    btn.Enable = function(self)
+        self:_Enable()
+        lbl:SetTextColor(1, 1, 1)
+    end
+
     return btn
 end
 
@@ -1857,16 +885,30 @@ local HEADER_TEXT = {
     spell = "Spell Hits",
     spellmiss = "Spell Misses",
     spellcrit = "Spell Crits",
+    spelltick = "DoT Ticks",
+    spelltickmiss = "DoT Miss Ticks",
+    spelltickcrit = "DoT Crit Ticks",
+
     petspell = "Pet Spell Hits",
     petspellmiss = "Pet Spell Misses",
     petspellcrit = "Pet Spell Crits",
+    petspelltick = "Pet DoT Ticks",
+    petspelltickmiss = "Pet DoT Miss Ticks",
+    petspelltickcrit = "Pet DoT Crit Ticks",
 
     heal = "Heals",
     healmiss = "Heal Misses",
     healcrit = "Heal Crits",
+    healtick = "HoT Ticks",
+    healtickmiss = "HoT Miss Ticks",
+    healtickcrit = "HoT Crit Ticks",
+
     petheal = "Pet Heals",
     pethealmiss = "Pet Heal Misses",
-    pethealcrit = "Pet Heal Crits"
+    pethealcrit = "Pet Heal Crits",
+    pethealtick = "Pet HoT Ticks",
+    pethealtickmiss = "Pet HoT Miss Ticks",
+    pethealtickcrit = "Pet HoT Crit Ticks",
 }
 local function CreatePowAnimationPanel(self, cat, anchor, point1, point2, x, y)
     local f = self:CreateChildFrame(point1, point2, anchor, x, y, 612, 90)
@@ -2089,6 +1131,17 @@ local function Refresh(self)
     end
 end
 
+local function EnableFrameTree(self)
+    for _, e in ipairs(self.widgets) do
+        if type(e.Enable) == 'function' then e:Enable() end
+    end
+end
+local function DisableFrameTree(self)
+    for _, e in ipairs(self.widgets) do
+        if type(e.Disable) == 'function' then e:Disable() end
+    end
+end
+
 local function CreateChildFrame(self, point1, point2, anchor, x, y, w, h)
     local f = CreateFrame("frame", self:NewFrameID(), self)
     self:AddFrame(f)
@@ -2107,6 +1160,9 @@ local function CreateChildFrame(self, point1, point2, anchor, x, y, w, h)
     f.CreateColorOption = CreateColorOption
     f.AddFrame = AddFrame
     f.NewFrameID = NewFrameID
+    f.Enable = EnableFrameTree
+    f.Disable = DisableFrameTree
+    f.Refresh = Refresh
     return f
 end
 
@@ -2588,8 +1644,9 @@ local mergingByIDCheckbox = ConfigPanel:CreateCheckbox("Separate By Spell ID", "
 local mergingByIconCheckbox = ConfigPanel:CreateCheckbox("Separate By Spell Icon", "Dont merge damage with different icons", mergingByIDCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, 0, DefaultConfig.mergeEventsBySpellIcon, "Config.mergeEventsBySpellIcon")
 local mergingByTypeCheckbox = ConfigPanel:CreateCheckbox("Separate By Damage Type", "Dont merge damage of different types", mergingByIconCheckbox, "TOPLEFT", "BOTTOMLEFT", 0, 0, DefaultConfig.mergeEventsBySchool, "Config.mergeEventsBySchool")
 
-local colorTableFrame = ConfigPanel:CreateChildFrame("TOPLEFT", "BOTTOMLEFT", merginOptionsHeader, 0, -196, 300, 340)
-local colorTableHeader = colorTableFrame:CreateHeader("Damage Type Colors", "GameFontNormalLarge", colorTableFrame, "TOPLEFT", "TOPLEFT", 0, 0)
+-- damage type colors
+local colorTableHeader = ConfigPanel:CreateHeader("Damage Type Colors", "GameFontNormalLarge", merginOptionsHeader, "TOPLEFT", "TOPLEFT", 0, -220)
+local colorTableFrame = ConfigPanel:CreateChildFrame("TOPLEFT", "BOTTOMLEFT", colorTableHeader, 0, 10, 500, 200)
 local colorTableX, colorTableY, colorTableCounter = 20, 0, 0
 
 for k,v in pairs(SCHOOL_NAMES) do
@@ -2607,6 +1664,59 @@ for k,v in pairs(SCHOOL_NAMES) do
         end
     end)
 end
+
+-- damage over time type colors
+local colorTableDotHeader = ConfigPanel:CreateHeader("Override Type Colors for Damage Over Time", "GameFontNormalLarge", colorTableHeader, "TOPLEFT", "TOPLEFT", 0, -200)
+local colorTableDotFrame = ConfigPanel:CreateChildFrame("TOPLEFT", "BOTTOMLEFT", colorTableDotHeader, 0, -20, 500, 200)
+
+local colorTableDotCheckbox = ConfigPanel:CreateCheckbox("Enabled", "Use separate type colors for damage over time", colorTableDotHeader, "TOPLEFT", "BOTTOMLEFT", 20, -8, DefaultConfig.colorTableDotEnabled, function(self, e, value)
+    if (e == "Get") then
+        local val = CFCT.Config.colorTableDotEnabled
+        if (val == true) then
+            colorTableDotFrame:Enable()
+        else
+            colorTableDotFrame:Disable()
+        end
+        return val
+    else
+        if (value == true) then
+            colorTableDotFrame:Enable()
+        else
+            colorTableDotFrame:Disable()
+        end
+        CFCT.Config.colorTableDotEnabled = value
+    end
+end)
+
+local copyTypeColorsBtn = ConfigPanel:CreateButton("Copy From Above", "Copies color settings from the damage types above", colorTableDotCheckbox, "LEFT", "RIGHT", 190, 0, function()
+    CFCT:ConfirmAction("This will overwrite all color settings below.", function()
+        for k,v in pairs(SCHOOL_NAMES) do
+            CFCT.Config.colorTableDot[k] = CFCT.Config.colorTable[k]
+        end
+        colorTableDotFrame:Refresh()
+    end)
+end)
+
+
+copyTypeColorsBtn:SetWidth(120)
+local colorTableDotX, colorTableDotY, colorTableDotCounter = 20, 0, 0
+
+for k,v in pairs(SCHOOL_NAMES) do
+    colorTableDotCounter = colorTableDotCounter + 1
+    if (colorTableDotY < -150) then
+        colorTableDotX = colorTableDotX + 150
+        colorTableDotY = 0
+    end
+    colorTableDotY = colorTableDotY - 20
+    local colorWidget = colorTableDotFrame:CreateColorOption(v, "Custom text color for this type", colorTableDotFrame, "TOPLEFT", "TOPLEFT", colorTableDotX, colorTableDotY, DefaultConfig.colorTableDot[k], function(self, e, value)
+        if (e == "Get") then
+            return CFCT.Config.colorTableDot[k]
+        else
+            CFCT.Config.colorTableDot[k] = value
+        end
+    end)
+end
+
 
 local CONFIG_LAYOUT = {
     {
@@ -2626,11 +1736,27 @@ local CONFIG_LAYOUT = {
         }
     },
     {
+        catname = "Damage Over Time",
+        subcatlist = {
+            "spelltick",
+            "spelltickcrit",
+            "spelltickmiss"
+        }
+    },
+    {
         catname = "Heals",
         subcatlist = {
             "heal",
             "healcrit",
             "healmiss"
+        }
+    },
+    {
+        catname = "Heals Over Time",
+        subcatlist = {
+            "healtick",
+            "healtickcrit",
+            "healtickmiss"
         }
     },
     {
@@ -2650,11 +1776,27 @@ local CONFIG_LAYOUT = {
         }
     },
     {
+        catname = "Pet Damage Over Time",
+        subcatlist = {
+            "petspelltick",
+            "petspelltickcrit",
+            "petspelltickmiss"
+        }
+    },
+    {
         catname = "Pet Heals",
         subcatlist = {
             "petheal",
             "pethealcrit",
             "pethealmiss"
+        }
+    },
+    {
+        catname = "Pet Heals Over Time",
+        subcatlist = {
+            "pethealtick",
+            "pethealtickcrit",
+            "pethealtickmiss"
         }
     }
 }

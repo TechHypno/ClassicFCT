@@ -1,4 +1,4 @@
-## Interface: 20502
+## Interface: 20503
 ## Title: ClassicFCT
 ## Notes: Classic Floating Combat Text
 ## Author: Discord Hypno#9974, techhypno.com, tehypno@ttv
@@ -6,6 +6,12 @@
 ## SavedVariables: ClassicFCTCustomPresets, ClassicFCTConfig, ClassicFCTVars, ClassicFCTTables
 ## SavedVariablesPerCharacter: ClassicFCTCharConfig, ClassicFCTCharVars, ClassicFCTCharTables
 ## OptionalDeps: LibStub, CallbackHandler-1.0, LibSharedMedia-3.0
+
 Libs\libs.xml
+
+presets.lua
+Presets\presets.xml
+
 config.lua
+
 main.lua
