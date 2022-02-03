@@ -2,7 +2,7 @@
     - Periodic effects can now be customised separately, including damage type colors
 
 0.86d   Nov 10, 2021
-    - Added option for separating misses from merged events - Credit: https://github.com/akbyrd
+    - Added an option for separating misses from merged events - Credit: https://github.com/akbyrd
 
 0.86a   Nov 6, 2021
     - Added spell icon support for autoattacks and autoshots
