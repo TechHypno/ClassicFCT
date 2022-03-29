@@ -1,7 +1,8 @@
 local addonName, CFCT = ...
 _G[addonName] = CFCT
 local IsClassic = (WOW_PROJECT_ID == WOW_PROJECT_CLASSIC)
-local IsRetail = not IsClassic
+local IsBCC = (WOW_PROJECT_ID == WOW_PROJECT_BURNING_CRUSADE_CLASSIC)
+local IsRetail = (WOW_PROJECT_ID == WOW_PROJECT_MAINLINE)
 local tinsert, tremove, tsort, format, strlen, strsub, gsub, floor, sin, cos, asin, acos, random, select, pairs, ipairs, unpack, bitband = tinsert, tremove, table.sort, format, strlen, strsub, gsub, floor, sin, cos, asin, acos, random, select, pairs, ipairs, unpack, bit.band
 local InCombatLockdown = InCombatLockdown
 local AbbreviateNumbers = AbbreviateNumbers
@@ -587,11 +588,12 @@ local function GrabFontString()
     return frame
 end
 
-
-local function SpellIconText(spellid)
+local iconCache = {}
+local function SpellIconText(spell) -- spellid or spellname
     local fctConfig = CFCT.Config
-    local tx = select(3,GetSpellInfo(spellid))
+    local tx = iconCache[spell] or select(3,GetSpellInfo(spell))
     if tx then
+        iconCache[spell] = tx
         local aspectRatio = fctConfig.spellIconAspectRatio
         local zoom = fctConfig.spellIconZoom
         local offsetX, offsetY = fctConfig.spellIconOffsetX, fctConfig.spellIconOffsetY
@@ -1054,6 +1056,7 @@ function f:COMBAT_LOG_EVENT_UNFILTERED()
         else --its a SPELL event
             local periodic = cleuEvent:find("SPELL_PERIODIC", 1, true)
             local spellid,spellname,school1,amount,overkill,school2,resist,block,absorb,crit,glancing,crushing,offhand = arg12,arg13,arg14,arg15,arg16,arg17,arg18,arg19,arg20,arg21,arg22,arg23,arg24
+            if (spellid == 0 and IsClassic) then spellid = spellname end
             self:DamageEvent(guid, spellid, amount, periodic, crit, petEvent, school1)
         end
     elseif CLEU_MISS_EVENT[cleuEvent] then
@@ -1063,6 +1066,7 @@ function f:COMBAT_LOG_EVENT_UNFILTERED()
         else --its a SPELL event
             local periodic = cleuEvent:find("SPELL_PERIODIC", 1, true)
             local spellid,spellname,school1,misstype,_,amount = arg12,arg13,arg14,arg15,arg16,arg17
+            if (spellid == 0 and IsClassic) then spellid = spellname end
             self:MissEvent(guid, spellid, amount, periodic, misstype, petEvent, school1)
         end
     elseif CLEU_HEALING_EVENT[cleuEvent] then
@@ -1072,6 +1076,7 @@ function f:COMBAT_LOG_EVENT_UNFILTERED()
         else --its a SPELL event
             local periodic = cleuEvent:find("SPELL_PERIODIC", 1, true)
             local spellid,spellname,school1,amount,overheal,absorb,crit = arg12,arg13,arg14,arg15,arg16,arg17,arg18
+            if (spellid == 0 and IsClassic) then spellid = spellname end
             self:HealingEvent(guid, spellid, amount, periodic, crit, petEvent, school1)
         end
     end
