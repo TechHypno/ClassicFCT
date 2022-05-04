@@ -22,7 +22,7 @@ f:SetPoint("CENTER", 0, 0)
 local anim = CFCT.Animating
 local fsc = CFCT.fontStringCache
 
-function round(n, d)
+local function round(n, d)
     local p = 10^d
     return math.floor(n * p) / p
 end
