@@ -759,6 +759,7 @@ local function ProcessCachedEvents()
                         merge.amount = merge.amount + e.amount
                         merge.text = merge.text or e.text
                         merge.count = merge.count + 1
+                        merge.miss = merge.miss == false and false or e.miss
                         merge.crit = merge.crit or e.crit
                         merge.periodic = merge.periodic and e.periodic
                     end
