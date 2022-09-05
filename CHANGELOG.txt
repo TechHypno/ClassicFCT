@@ -1,3 +1,6 @@
+0.87g   Sep 5, 2022
+    - Reduced possibility of text overlap when a lot of text is scrolling on screen
+
 0.87a   Feb 2, 2022
     - Periodic effects can now be customised separately, including damage type colors
 

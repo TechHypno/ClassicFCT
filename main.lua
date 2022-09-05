@@ -952,8 +952,8 @@ function f:ADDON_LOADED(name)
                 CFCT:Log(GetAddOnMetadata(addonName, "Version")..[[
 
 Recent changes:
-    M0.87a   Feb 2, 2022
-        - Periodic effects can now be customised separetely, including damage type colors]])
+    0.87g   Sep 5, 2022
+        - Reduced possibility of text overlap when a lot of text is scrolling on screen]])
             end)
         end
         CFCT.lastVersion = version
