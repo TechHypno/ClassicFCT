@@ -376,9 +376,15 @@ local function GridLayout(unsortedFrames)
     for k, e in ipairs(frames) do
         -- frame mode
         -- local gapX, gapY = gapX * e.state.baseScale, gapY * e.state.baseScale
-        local gridX = GRID[k] and (GRID[k].x and frames[GRID[k].x.p].state.gridX + GRID[k].x.o * (gapX + frames[GRID[k].x.p].state.width + 0.5*(e.state.width - frames[GRID[k].x.p].state.width))) or 0
-        local gridY = GRID[k] and (GRID[k].y and frames[GRID[k].y.p].state.gridY + GRID[k].y.o * (gapY + (GRID[k].y.o < 0 and e.state.height or frames[GRID[k].y.p].state.height))) or 0
-        if GRID[k] or k == 1 then
+        local gridCell = GRID[k]
+        local gridX = gridCell and (gridCell.x and frames[gridCell.x.p].state.gridX + gridCell.x.o * (gapX + frames[gridCell.x.p].state.width + 0.5*(e.state.width - frames[gridCell.x.p].state.width))) or 0
+        local gridY = gridCell and (gridCell.y and frames[gridCell.y.p].state.gridY + gridCell.y.o * (gapY + (gridCell.y.o < 0 and e.state.height or frames[gridCell.y.p].state.height))) or 0
+        if gridCell or k == 1 then
+            if (e.state.gridIdx and (e.state.gridIdx ~= k)) then
+                e.state.scrollReset = true
+            end
+            e.state.gridIdx = k
+            -- e:SetText(format("%03d",e.state.gridIdx))
             e.state.posX = e.state.posX + gridX - (e.state.gridX or 0)
             e.state.posY = e.state.posY + gridY - (e.state.gridY or 0)
             e.state.gridX = gridX
@@ -441,32 +447,42 @@ local ANIMATIONS = {
     end,
     Scroll = function(self, catConfig, animConfig)
         local duration = CFCT.Config.animDuration
-        local dir, dist, scrollX, scrollY = animConfig.direction, animConfig.distance, 0, 0
+        local state, dir, dist, scrollX, scrollY = self.state, animConfig.direction, animConfig.distance, 0, 0
 
         if dir:find("RANDOM") then
-            if (self.state.randomX == nil) and (self.state.randomY == nil) then
+            if (state.randomX == nil) and (state.randomY == nil) then
                 local a = random(1,628) / 100
                 local rx, ry = cos(a), sin(a)
-                self.state.randomX, self.state.randomY =  rx * dist, ry * dist
+                state.randomX, state.randomY =  rx * dist, ry * dist
             end
-            scrollX = AnimateLinearAbsolute(self.state.initialTime, duration, 0, self.state.randomX)
-            scrollY = AnimateLinearAbsolute(self.state.initialTime, duration, 0, self.state.randomY)
+            scrollX = AnimateLinearAbsolute(state.initialTime, duration, 0, state.randomX)
+            scrollY = AnimateLinearAbsolute(state.initialTime, duration, 0, state.randomY)
         elseif dir:find("RIGHT") then
-            scrollX = AnimateLinearAbsolute(self.state.initialTime, duration, 0, dist)
+            scrollX = AnimateLinearAbsolute(state.initialTime, duration, 0, dist)
         elseif dir:find("LEFT") then
-            scrollX = AnimateLinearAbsolute(self.state.initialTime, duration, 0, -dist)
+            scrollX = AnimateLinearAbsolute(state.initialTime, duration, 0, -dist)
         end
         if dir:find("UP") then
-            scrollY = AnimateLinearAbsolute(self.state.initialTime, duration, 0, dist)
+            scrollY = AnimateLinearAbsolute(state.initialTime, duration, 0, dist)
         elseif dir:find("DOWN") then
-            scrollY = AnimateLinearAbsolute(self.state.initialTime, duration, 0, -dist)
+            scrollY = AnimateLinearAbsolute(state.initialTime, duration, 0, -dist)
         end
+        if state.scrollOriginX == nil then
+            state.scrollOriginX = 0
+            state.scrollOriginY = 0
+        elseif state.scrollReset then
+            state.scrollOriginX = -scrollX
+            state.scrollOriginY = -scrollY
+            state.scrollReset = nil
+        end
+        scrollX = scrollX + state.scrollOriginX
+        scrollY = scrollY + state.scrollOriginY
         -- substract old scroll pos and add new scroll pos
-        self.state.posX = self.state.posX + scrollX - (self.state.scrollX or 0)
-        self.state.posY = self.state.posY + scrollY - (self.state.scrollY or 0)
+        state.posX = state.posX + scrollX - (state.scrollX or 0)
+        state.posY = state.posY + scrollY - (state.scrollY or 0)
         -- save current scroll pos for next call
-        self.state.scrollX = scrollX
-        self.state.scrollY = scrollY
+        state.scrollX = scrollX
+        state.scrollY = scrollY
     end,
     -- Map
 
