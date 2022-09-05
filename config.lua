@@ -1,5 +1,5 @@
 local addonName, CFCT = ...
-local tinsert, tremove, format, strlen, strsub, gsub, floor, sin, cos, asin, acos, random, select, pairs, ipairs, bitband = tinsert, tremove, format, strlen, strsub, gsub, floor, sin, cos, asin, acos, random, select, pairs, ipairs, bit.band
+local tinsert, tremove, tsort, format, strlen, strsub, gsub, floor, sin, cos, asin, acos, random, select, pairs, ipairs, unpack, bitband = table.insert, table.remove, table.sort, string.format, string.len, string.sub, string.gsub, math.floor, math.sin, math.cos, math.asin, math.acos, math.random, select, pairs, ipairs, unpack, bit.band
 local GetSpellInfo = GetSpellInfo
 local IsRetail = (WOW_PROJECT_ID == WOW_PROJECT_MAINLINE)
 local IsClassic = (WOW_PROJECT_ID == WOW_PROJECT_CLASSIC)
