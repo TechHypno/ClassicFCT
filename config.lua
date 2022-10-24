@@ -655,7 +655,7 @@ if LSM then
                 fontPaths[name] = path
                 if (fontObjects[path] == nil) then
                     fontObjects[path] = CreateFont(name)
-                    fontObjects[path]:SetFont(path, 14)
+                    fontObjects[path]:SetFont(path, 14, "")
                 end
             end
         end
