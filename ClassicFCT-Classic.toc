@@ -1,4 +1,4 @@
-## Interface: 11402
+## Interface: 11403
 ## Title: ClassicFCT
 ## Notes: Classic Floating Combat Text
 ## Author: Discord Hypno#9974, techhypno.com, tehypno@ttv
