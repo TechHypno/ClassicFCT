@@ -714,7 +714,7 @@ local function CacheEvent(guid, event, amount, text, spellid, spellicon, periodi
 
     local fctConfig = CFCT.Config
     if fctConfig.filterSpellBlacklist[spellid] == true
-    or fctConfig.filterMissesEnabled then
+    or (fctConfig.filterMissesEnabled and miss) then
         return
     end
 
