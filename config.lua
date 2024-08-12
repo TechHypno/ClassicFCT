@@ -541,12 +541,29 @@ local SCHOOL_NAMES = {
 
 
 function ShowColorPicker(r, g, b, a, changedCallback)
-    ColorPickerFrame:SetColorRGB(r,g,b);
-    ColorPickerFrame.hasOpacity, ColorPickerFrame.opacity = (a ~= nil), a;
-    ColorPickerFrame.previousValues = {r,g,b,a};
-    ColorPickerFrame.func, ColorPickerFrame.opacityFunc, ColorPickerFrame.cancelFunc = changedCallback, changedCallback, changedCallback;
-    ColorPickerFrame:Hide();
-    ColorPickerFrame:Show();
+    --show color picker
+    ColorPickerFrame:Hide()
+    ColorPickerFrame:SetFrameStrata("FULLSCREEN_DIALOG")
+    -- ColorPickerFrame:SetFrameLevel(self:GetFrameLevel() + 10)
+    ColorPickerFrame:SetupColorPickerAndShow({
+        hasOpacity = true,
+        r = r, g = g, b = b,
+        opacity = a,
+        extraInfo = nil,
+        opacityFunc = function()
+            local r, g, b = ColorPickerFrame:GetColorRGB()
+            local a = ColorPickerFrame:GetColorAlpha()
+            changedCallback(r, g, b, a)
+        end,
+        swatchFunc = function()
+            local r, g, b = ColorPickerFrame:GetColorRGB()
+            local a = ColorPickerFrame:GetColorAlpha()
+            changedCallback(r, g, b, a)
+        end,
+        cancelFunc = function()
+            changedCallback(ColorPickerFrame:GetPreviousValues())
+        end,
+    })
 end
 
 local function CreateHeader(self, text, headerType, parent, point1, point2, x, y)
@@ -796,33 +813,40 @@ local function CreateColorOption(self, label, tooltip, parent, point1, point2, x
     end)
     btn:SetScript("OnClick", function(self)
         --show color picker
-        ColorPickerFrame:Hide()
-        ColorPickerFrame:SetFrameStrata("FULLSCREEN_DIALOG")
-        ColorPickerFrame:SetFrameLevel(self:GetFrameLevel() + 10)
-        ColorPickerFrame.func = function()
-            local r, g, b = ColorPickerFrame:GetColorRGB()
-            local a = 1 - OpacitySliderFrame:GetValue()
-            WidgetConfigBridgeSet(self, CFCT.RGBA2Color(r, g, b, a), ConfigPathOrFunc)
-            self:SetColor(r, g, b, a)
-        end
-        ColorPickerFrame.hasOpacity = true
-        ColorPickerFrame.opacityFunc = function()
-            local r, g, b = ColorPickerFrame:GetColorRGB()
-            local a = 1 - OpacitySliderFrame:GetValue()
-            WidgetConfigBridgeSet(self, CFCT.RGBA2Color(r, g, b, a), ConfigPathOrFunc)
-            self:SetColor(r, g, b, a)
-        end
+        if (IsWarWithin) then
+            ShowColorPicker(self.value.r, self.value.g, self.value.b, self.value.a, function(r, g, b, a)
+                WidgetConfigBridgeSet(self, CFCT.RGBA2Color(r, g, b, a), ConfigPathOrFunc)
+                self:SetColor(r, g, b, a)
+            end)
+        else
+            ColorPickerFrame:Hide()
+            ColorPickerFrame:SetFrameStrata("FULLSCREEN_DIALOG")
+            ColorPickerFrame:SetFrameLevel(self:GetFrameLevel() + 10)
+            ColorPickerFrame.func = function()
+                local r, g, b = ColorPickerFrame:GetColorRGB()
+                local a = 1 - OpacitySliderFrame:GetValue()
+                WidgetConfigBridgeSet(self, CFCT.RGBA2Color(r, g, b, a), ConfigPathOrFunc)
+                self:SetColor(r, g, b, a)
+            end
+            ColorPickerFrame.hasOpacity = true
+            ColorPickerFrame.opacityFunc = function()
+                local r, g, b = ColorPickerFrame:GetColorRGB()
+                local a = 1 - OpacitySliderFrame:GetValue()
+                WidgetConfigBridgeSet(self, CFCT.RGBA2Color(r, g, b, a), ConfigPathOrFunc)
+                self:SetColor(r, g, b, a)
+            end
 
-        local a, r, g, b = self.value.a, self.value.r, self.value.g, self.value.b
-        ColorPickerFrame.opacity = 1 - a
-        ColorPickerFrame:SetColorRGB(r, g, b)
+            local a, r, g, b = self.value.a, self.value.r, self.value.g, self.value.b
+            ColorPickerFrame.opacity = 1 - a
+            ColorPickerFrame:SetColorRGB(r, g, b)
 
-        ColorPickerFrame.cancelFunc = function()
-            WidgetConfigBridgeSet(self, CFCT.RGBA2Color(r, g, b, a), ConfigPathOrFunc)
-            self:SetColor(r, g, b, a)
+            ColorPickerFrame.cancelFunc = function()
+                WidgetConfigBridgeSet(self, CFCT.RGBA2Color(r, g, b, a), ConfigPathOrFunc)
+                self:SetColor(r, g, b, a)
+            end
+
+            ColorPickerFrame:Show()
         end
-
-        ColorPickerFrame:Show()
     end)
     btn:SetScript("OnShow", function(self)
         local r, g, b, a = CFCT.Color2RGBA(WidgetConfigBridgeGet(self, defVal, ConfigPathOrFunc))
