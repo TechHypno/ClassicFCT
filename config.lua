@@ -4,6 +4,7 @@ local GetSpellInfo = GetSpellInfo
 local IsRetail = (WOW_PROJECT_ID == WOW_PROJECT_MAINLINE)
 local IsClassic = (WOW_PROJECT_ID == WOW_PROJECT_CLASSIC)
 local IsBCC = (WOW_PROJECT_ID == WOW_PROJECT_BURNING_CRUSADE_CLASSIC)
+local IsWarWithin = select(4, GetBuildInfo()) >= 110000
 local DefaultPresets = CFCT:GetDefaultPresets()
 local DefaultConfig = DefaultPresets["Mists of Pandaria"]
 local DefaultVars = {
@@ -321,8 +322,11 @@ CFCT.Config = {
         CFCT:Log("Defaults restored.")
     end,
     Show = function(self)
-        InterfaceOptionsFrame_OpenToCategory(CFCT.ConfigPanels[1])
-        InterfaceOptionsFrame_OpenToCategory(CFCT.ConfigPanels[1])
+        if (IsWarWithin) then
+            Settings.OpenToCategory(CFCT.ConfigPanels[1].CategoryID)
+        else
+            InterfaceOptionsFrame_OpenToCategory(CFCT.ConfigPanels[1])
+        end
     end
 }
 
@@ -1166,8 +1170,20 @@ local function CreateChildFrame(self, point1, point2, anchor, x, y, w, h)
     return f
 end
 
+local ScrollUpBtnOffsetX = IsWarWithin and -15 or -6
+local ScrollUpBtnOffsetY = IsWarWithin and 8 or -2
+local ScrollDnBtnOffsetX = IsWarWithin and -15 or -6
+local ScrollDnBtnOffsetY = IsWarWithin and -1 or 2
 local function CreateConfigPanel(name, parent, height)
     local Container = CreateFrame('frame', "ClassicFCTConfigPanel_"..gsub(name, " ", ""), UIParent)
+    
+    Container.name = name
+    Container.parent = parent
+    Container.CategoryID = name
+    Container.refresh = Refresh
+	Container.okay = function(self) end
+	Container.cancel = function(self) end
+    
     local sf = CreateFrame('ScrollFrame', Container:GetName().."_ScrollFrame", Container, "UIPanelScrollFrameTemplate")
     local sfname = sf:GetName()
     sf.scrollbar = getglobal(sfname.."ScrollBar")
@@ -1175,23 +1191,33 @@ local function CreateConfigPanel(name, parent, height)
     sf.scrolldownbutton = getglobal(sfname.."ScrollBarScrollDownButton")
 
     sf.scrollupbutton:ClearAllPoints();
-    sf.scrollupbutton:SetPoint("TOPLEFT", sf, "TOPRIGHT", -6, -2);
+    sf.scrollupbutton:SetPoint("TOPLEFT", sf, "TOPRIGHT", ScrollUpBtnOffsetX, ScrollUpBtnOffsetY);
     
     sf.scrolldownbutton:ClearAllPoints();
-    sf.scrolldownbutton:SetPoint("BOTTOMLEFT", sf, "BOTTOMRIGHT", -6, 2);
+    sf.scrolldownbutton:SetPoint("BOTTOMLEFT", sf, "BOTTOMRIGHT", ScrollDnBtnOffsetX, ScrollDnBtnOffsetY);
     
     sf.scrollbar:ClearAllPoints();
     sf.scrollbar:SetPoint("TOP", sf.scrollupbutton, "BOTTOM", 0, -2);
     sf.scrollbar:SetPoint("BOTTOM", sf.scrolldownbutton, "TOP", 0, 2);
-
-    Container.name = name
-    Container.parent = parent
-    Container.refresh = Refresh
-	Container.okay = function(self)
-	end
-	Container.cancel = function(self)
-	end
-    InterfaceOptions_AddCategory(Container)
+    
+    if (IsWarWithin) then
+        Container.OnCommit = function(self)  end
+        Container.OnDefault = function(self)  end
+        Container.OnRefresh = function(self) Refresh(Container) end
+        
+        local Category, Layout
+        if (parent == nil) then
+            Category, Layout = Settings.RegisterCanvasLayoutCategory(Container, name)
+            Settings.RegisterAddOnCategory(Category)
+        else
+            Category, Layout = Settings.RegisterCanvasLayoutSubcategory(Settings.GetCategory(parent), Container, name)
+        end
+        Container.CategoryID = Category:GetID()
+    else
+        InterfaceOptions_AddCategory(Container)
+    end
+    
+        
     CFCT.ConfigPanels[#CFCT.ConfigPanels + 1] = Container
     -- Container:HookScript("OnShow")
     Container:SetAllPoints()
@@ -1202,7 +1228,7 @@ local function CreateConfigPanel(name, parent, height)
     p.widgets = {}
     p.widgetCount = 0
     p.CreateSubPanel = function(self, name, height)
-        return CreateConfigPanel(name, Container.name, height)
+        return CreateConfigPanel(name, Container.CategoryID, height)
     end
     p.CreateChildFrame = CreateChildFrame
     p.CreateCategoryPanel = CreateCategoryPanel
