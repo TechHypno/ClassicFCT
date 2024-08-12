@@ -814,38 +814,17 @@ local function CreateColorOption(self, label, tooltip, parent, point1, point2, x
     btn:SetScript("OnClick", function(self)
         --show color picker
         if (IsWarWithin) then
+            ColorPickerFrame:SetFrameLevel(self:GetFrameLevel() + 10)
             ShowColorPicker(self.value.r, self.value.g, self.value.b, self.value.a, function(r, g, b, a)
                 WidgetConfigBridgeSet(self, CFCT.RGBA2Color(r, g, b, a), ConfigPathOrFunc)
                 self:SetColor(r, g, b, a)
             end)
         else
-            ColorPickerFrame:Hide()
-            ColorPickerFrame:SetFrameStrata("FULLSCREEN_DIALOG")
             ColorPickerFrame:SetFrameLevel(self:GetFrameLevel() + 10)
-            ColorPickerFrame.func = function()
-                local r, g, b = ColorPickerFrame:GetColorRGB()
-                local a = 1 - OpacitySliderFrame:GetValue()
-                WidgetConfigBridgeSet(self, CFCT.RGBA2Color(r, g, b, a), ConfigPathOrFunc)
-                self:SetColor(r, g, b, a)
-            end
-            ColorPickerFrame.hasOpacity = true
-            ColorPickerFrame.opacityFunc = function()
-                local r, g, b = ColorPickerFrame:GetColorRGB()
-                local a = 1 - OpacitySliderFrame:GetValue()
-                WidgetConfigBridgeSet(self, CFCT.RGBA2Color(r, g, b, a), ConfigPathOrFunc)
-                self:SetColor(r, g, b, a)
-            end
-
-            local a, r, g, b = self.value.a, self.value.r, self.value.g, self.value.b
-            ColorPickerFrame.opacity = 1 - a
-            ColorPickerFrame:SetColorRGB(r, g, b)
-
-            ColorPickerFrame.cancelFunc = function()
-                WidgetConfigBridgeSet(self, CFCT.RGBA2Color(r, g, b, a), ConfigPathOrFunc)
-                self:SetColor(r, g, b, a)
-            end
-
-            ColorPickerFrame:Show()
+            ShowColorPicker(self.value.r, self.value.g, self.value.b, 1 - self.value.a, function(r, g, b, a)
+                WidgetConfigBridgeSet(self, CFCT.RGBA2Color(r, g, b, 1 - a), ConfigPathOrFunc)
+                self:SetColor(r, g, b, 1 - a)
+            end)
         end
     end)
     btn:SetScript("OnShow", function(self)
