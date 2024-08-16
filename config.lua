@@ -4,7 +4,7 @@ local GetSpellInfo = GetSpellInfo
 local IsRetail = (WOW_PROJECT_ID == WOW_PROJECT_MAINLINE)
 local IsClassic = (WOW_PROJECT_ID == WOW_PROJECT_CLASSIC)
 local IsBCC = (WOW_PROJECT_ID == WOW_PROJECT_BURNING_CRUSADE_CLASSIC)
-local IsWarWithin = select(4, GetBuildInfo()) >= 110000
+local UsesNewSettingsInterface = Settings and type(Settings.RegisterAddOnCategory) == "function"
 local DefaultPresets = CFCT:GetDefaultPresets()
 local DefaultConfig = DefaultPresets["Mists of Pandaria"]
 local DefaultVars = {
@@ -322,7 +322,7 @@ CFCT.Config = {
         CFCT:Log("Defaults restored.")
     end,
     Show = function(self)
-        if (IsWarWithin) then
+        if (UsesNewSettingsInterface) then
             Settings.OpenToCategory(CFCT.ConfigPanels[1].CategoryID)
         else
             InterfaceOptionsFrame_OpenToCategory(CFCT.ConfigPanels[1])
@@ -813,7 +813,7 @@ local function CreateColorOption(self, label, tooltip, parent, point1, point2, x
     end)
     btn:SetScript("OnClick", function(self)
         --show color picker
-        if (IsWarWithin) then
+        if (UsesNewSettingsInterface) then
             ColorPickerFrame:SetFrameLevel(self:GetFrameLevel() + 10)
             ShowColorPicker(self.value.r, self.value.g, self.value.b, self.value.a, function(r, g, b, a)
                 WidgetConfigBridgeSet(self, CFCT.RGBA2Color(r, g, b, a), ConfigPathOrFunc)
@@ -1173,10 +1173,10 @@ local function CreateChildFrame(self, point1, point2, anchor, x, y, w, h)
     return f
 end
 
-local ScrollUpBtnOffsetX = IsWarWithin and -15 or -6
-local ScrollUpBtnOffsetY = IsWarWithin and 8 or -2
-local ScrollDnBtnOffsetX = IsWarWithin and -15 or -6
-local ScrollDnBtnOffsetY = IsWarWithin and -1 or 2
+local ScrollUpBtnOffsetX = UsesNewSettingsInterface and -15 or -6
+local ScrollUpBtnOffsetY = UsesNewSettingsInterface and 8 or -2
+local ScrollDnBtnOffsetX = UsesNewSettingsInterface and -15 or -6
+local ScrollDnBtnOffsetY = UsesNewSettingsInterface and -1 or 2
 local function CreateConfigPanel(name, parent, height)
     local Container = CreateFrame('frame', "ClassicFCTConfigPanel_"..gsub(name, " ", ""), UIParent)
     
@@ -1203,7 +1203,7 @@ local function CreateConfigPanel(name, parent, height)
     sf.scrollbar:SetPoint("TOP", sf.scrollupbutton, "BOTTOM", 0, -2);
     sf.scrollbar:SetPoint("BOTTOM", sf.scrolldownbutton, "TOP", 0, 2);
     
-    if (IsWarWithin) then
+    if (UsesNewSettingsInterface) then
         Container.OnCommit = function(self)  end
         Container.OnDefault = function(self)  end
         Container.OnRefresh = function(self) Refresh(Container) end
