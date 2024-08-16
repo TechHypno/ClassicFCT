@@ -7,6 +7,7 @@ local tinsert, tremove, tsort, format, strlen, strsub, gsub, floor, sin, cos, as
 local InCombatLockdown = InCombatLockdown
 local AbbreviateNumbers = AbbreviateNumbers
 local GetTime = GetTime
+local GetAddOnMetadata = GetAddOnMetadata or C_AddOns.GetAddOnMetadata
 
 local GetSpellInfo_old = GetSpellInfo
 local GetSpellInfo = (type(GetSpellInfo_old) == 'function') and function(id)
