@@ -4,7 +4,8 @@ local GetSpellInfo = GetSpellInfo
 local IsRetail = (WOW_PROJECT_ID == WOW_PROJECT_MAINLINE)
 local IsClassic = (WOW_PROJECT_ID == WOW_PROJECT_CLASSIC)
 local IsBCC = (WOW_PROJECT_ID == WOW_PROJECT_BURNING_CRUSADE_CLASSIC)
-local UsesNewSettingsInterface = Settings and type(Settings.RegisterAddOnCategory) == "function"
+local UsesNewSettingsInterface = (Settings and (type(Settings.RegisterAddOnCategory) == 'function'))
+local UsesNewColorPicker = OpacitySliderFrame == nil or ((type(OpacitySliderFrame.GetParent) == 'function') and OpacitySliderFrame:GetParent():GetName() ~= "ColorPickerFrame")
 local DefaultPresets = CFCT:GetDefaultPresets()
 local DefaultConfig = DefaultPresets["Mists of Pandaria"]
 local DefaultVars = {
@@ -540,28 +541,36 @@ local SCHOOL_NAMES = {
 
 
 
-function ShowColorPicker(r, g, b, a, changedCallback)
+function ShowColorPicker(_parentFrame, _r, _g, _b, _a, _changedCallback)
     --show color picker
     ColorPickerFrame:Hide()
     ColorPickerFrame:SetFrameStrata("FULLSCREEN_DIALOG")
-    -- ColorPickerFrame:SetFrameLevel(self:GetFrameLevel() + 10)
+    
+    if (_parentFrame) then
+        ColorPickerFrame:SetFrameLevel(_parentFrame:GetFrameLevel() + 10)
+    end
+    local flip_alpha = not UsesNewColorPicker
+    local function fix_alpha(src_alpha)
+        return (flip_alpha and (1 - src_alpha)) or src_alpha
+    end
     ColorPickerFrame:SetupColorPickerAndShow({
         hasOpacity = true,
-        r = r, g = g, b = b,
-        opacity = a,
+        r = _r, g = _g, b = _b,
+        opacity = fix_alpha(_a),
         extraInfo = nil,
         opacityFunc = function()
             local r, g, b = ColorPickerFrame:GetColorRGB()
             local a = ColorPickerFrame:GetColorAlpha()
-            changedCallback(r, g, b, a)
+            _changedCallback(r, g, b, fix_alpha(a))
         end,
         swatchFunc = function()
             local r, g, b = ColorPickerFrame:GetColorRGB()
             local a = ColorPickerFrame:GetColorAlpha()
-            changedCallback(r, g, b, a)
+            _changedCallback(r, g, b, fix_alpha(a))
         end,
         cancelFunc = function()
-            changedCallback(ColorPickerFrame:GetPreviousValues())
+            local r, g, b, a = ColorPickerFrame:GetPreviousValues()
+            _changedCallback(r, g, b, fix_alpha(a))
         end,
     })
 end
@@ -813,19 +822,10 @@ local function CreateColorOption(self, label, tooltip, parent, point1, point2, x
     end)
     btn:SetScript("OnClick", function(self)
         --show color picker
-        if (UsesNewSettingsInterface) then
-            ColorPickerFrame:SetFrameLevel(self:GetFrameLevel() + 10)
-            ShowColorPicker(self.value.r, self.value.g, self.value.b, self.value.a, function(r, g, b, a)
-                WidgetConfigBridgeSet(self, CFCT.RGBA2Color(r, g, b, a), ConfigPathOrFunc)
-                self:SetColor(r, g, b, a)
-            end)
-        else
-            ColorPickerFrame:SetFrameLevel(self:GetFrameLevel() + 10)
-            ShowColorPicker(self.value.r, self.value.g, self.value.b, 1 - self.value.a, function(r, g, b, a)
-                WidgetConfigBridgeSet(self, CFCT.RGBA2Color(r, g, b, 1 - a), ConfigPathOrFunc)
-                self:SetColor(r, g, b, 1 - a)
-            end)
-        end
+        ShowColorPicker(self, self.value.r, self.value.g, self.value.b, self.value.a, function(r, g, b, a)
+            WidgetConfigBridgeSet(self, CFCT.RGBA2Color(r, g, b, a), ConfigPathOrFunc)
+            self:SetColor(r, g, b, a)
+        end)
     end)
     btn:SetScript("OnShow", function(self)
         local r, g, b, a = CFCT.Color2RGBA(WidgetConfigBridgeGet(self, defVal, ConfigPathOrFunc))
