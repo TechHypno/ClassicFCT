@@ -6,8 +6,22 @@ local IsRetail = (WOW_PROJECT_ID == WOW_PROJECT_MAINLINE)
 local tinsert, tremove, tsort, format, strlen, strsub, gsub, floor, sin, cos, asin, acos, random, select, pairs, ipairs, unpack, bitband = table.insert, table.remove, table.sort, string.format, string.len, string.sub, string.gsub, math.floor, math.sin, math.cos, math.asin, math.acos, math.random, select, pairs, ipairs, unpack, bit.band
 local InCombatLockdown = InCombatLockdown
 local AbbreviateNumbers = AbbreviateNumbers
-local GetSpellInfo = GetSpellInfo
 local GetTime = GetTime
+
+local GetSpellInfo_old = GetSpellInfo
+local GetSpellInfo = (type(GetSpellInfo_old) == 'function') and function(id)
+    local name, rank, icon, castTime, minRange, maxRange, spellID, originalIcon = GetSpellInfo_old(id)
+    return {
+        name = name,
+        rank = rank,
+        iconID = icon,
+        originalIconID = originalIcon,
+        castTime = castTime,
+        minRange = minRange,
+        maxRange = maxRange,
+        spellID = spellID
+    }
+end or C_Spell.GetSpellInfo
 
 CFCT.frame = CreateFrame("Frame", "ClassicFCT.frame", UIParent)
 CFCT.Animating = {}
@@ -607,7 +621,7 @@ end
 local iconCache = {}
 local function SpellIconText(spell) -- spellid or spellname
     local fctConfig = CFCT.Config
-    local tx = iconCache[spell] or select(3,GetSpellInfo(spell))
+    local tx = iconCache[spell] or GetSpellInfo(spell).iconID
     if tx then
         iconCache[spell] = tx
         local aspectRatio = fctConfig.spellIconAspectRatio
@@ -813,7 +827,7 @@ function CFCT:Test(n)
         local spellid
         repeat
             spellid = random(1,32767)
-        until select(3,GetSpellInfo(spellid))
+        until GetSpellInfo(spellid).iconID
 
         local school = random(1,128)
         local pet = (random(1,3) == 1)

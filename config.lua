@@ -1,6 +1,21 @@
 local addonName, CFCT = ...
 local tinsert, tremove, tsort, format, strlen, strsub, gsub, floor, sin, cos, asin, acos, random, select, pairs, ipairs, unpack, bitband = table.insert, table.remove, table.sort, string.format, string.len, string.sub, string.gsub, math.floor, math.sin, math.cos, math.asin, math.acos, math.random, select, pairs, ipairs, unpack, bit.band
-local GetSpellInfo = GetSpellInfo
+
+local GetSpellInfo_old = GetSpellInfo
+local GetSpellInfo = (type(GetSpellInfo_old) == 'function') and function(id)
+    local name, rank, icon, castTime, minRange, maxRange, spellID, originalIcon = GetSpellInfo_old(id)
+    return {
+        name = name,
+        rank = rank,
+        iconID = icon,
+        originalIconID = originalIcon,
+        castTime = castTime,
+        minRange = minRange,
+        maxRange = maxRange,
+        spellID = spellID
+    }
+end or C_Spell.GetSpellInfo
+
 local IsRetail = (WOW_PROJECT_ID == WOW_PROJECT_MAINLINE)
 local IsClassic = (WOW_PROJECT_ID == WOW_PROJECT_CLASSIC)
 local IsBCC = (WOW_PROJECT_ID == WOW_PROJECT_BURNING_CRUSADE_CLASSIC)
@@ -1452,12 +1467,12 @@ filteringBlacklistDropdown:HookScript("OnShow", function(self)
     local spellIdTable = CFCT.Config.filterSpellBlacklist
     local color = "FFFFFF"
     for k,v in pairs(spellIdTable) do
-        local name, _, icon = GetSpellInfo(k)
-        if name then
+        local spell = GetSpellInfo(k)
+        if spell.name then
             CFCT.spellIdCache[k] = true
             -- print(format("|T%s:12:12:0:0:120:120:10:110:10:110|t|cff%s%s(%d)|r", icon, color, name, k), v)
             table.insert(FilteringBlacklistMenu, {
-                text = format("|T%s:12:12:0:0:120:120:10:110:10:110|t|cff%s%s(%d)|r", icon, color, name, k),
+                text = format("|T%s:12:12:0:0:120:120:10:110:10:110|t|cff%s%s(%d)|r", spell.icon, color, spell.name, k),
                 value = k
             })
         end
@@ -1465,10 +1480,10 @@ filteringBlacklistDropdown:HookScript("OnShow", function(self)
     color = "808080"
     for k,v in pairs(CFCT.spellIdCache) do
         if (spellIdTable[k] == nil) then
-            local name, _, icon = GetSpellInfo(k)
-            if name then
+            local spell = GetSpellInfo(k)
+            if spell.name then
                 table.insert(FilteringBlacklistMenu, {
-                    text = format("|T%s:12:12:0:0:120:120:10:110:10:110|t|cff%s%s(%d)|r", icon, color, name, k),
+                    text = format("|T%s:12:12:0:0:120:120:10:110:10:110|t|cff%s%s(%d)|r", spell.icon, color, spell.name, k),
                     value = k
                 })
             end
@@ -1578,11 +1593,11 @@ mergingIntervalOverrideDropdown:HookScript("OnShow", function(self)
     local spellIdTable = CFCT.Config.mergeEventsIntervalOverrides
     local color = "FFFFFF"
     for k,v in pairs(spellIdTable) do
-        local name, _, icon = GetSpellInfo(k)
-        if name then
+        local spell = GetSpellInfo(k)
+        if spell.name then
             CFCT.spellIdCache[k] = true
             table.insert(MergeIntervalOverrideMenu, {
-                text = format("|T%s:12:12:0:0:120:120:10:110:10:110|t|cff%s%s(%d)|r", icon, color, name, k),
+                text = format("|T%s:12:12:0:0:120:120:10:110:10:110|t|cff%s%s(%d)|r", spell.icon, color, spell.name, k),
                 value = k
             })
         end
@@ -1590,10 +1605,10 @@ mergingIntervalOverrideDropdown:HookScript("OnShow", function(self)
     color = "808080"
     for k,v in pairs(CFCT.spellIdCache) do
         if (spellIdTable[k] == nil)then
-            local name, _, icon = GetSpellInfo(k)
-            if name then
+            local spell = GetSpellInfo(k)
+            if spell.name then
                 table.insert(MergeIntervalOverrideMenu, {
-                    text = format("|T%s:12:12:0:0:120:120:10:110:10:110|t|cff%s%s(%d)|r", icon, color, name, k),
+                    text = format("|T%s:12:12:0:0:120:120:10:110:10:110|t|cff%s%s(%d)|r", spell.icon, color, spell.name, k),
                     value = k
                 })
             end
