@@ -967,8 +967,8 @@ function f:ADDON_LOADED(name)
                 CFCT:Log(GetAddOnMetadata(addonName, "Version")..[[
 
 Recent changes:
-    0.87g   Sep 5, 2022
-        - Reduced possibility of text overlap when a lot of text is scrolling on screen]])
+    0.87u   Aug 16, 2024
+        - Fixed miss filter, ColorPicker and Config panels for The War Within]])
             end)
         end
         CFCT.lastVersion = version

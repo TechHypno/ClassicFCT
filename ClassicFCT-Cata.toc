@@ -1,7 +1,7 @@
 ## Interface: 40400
 ## Title: ClassicFCT
 ## Notes: Classic Floating Combat Text
-## Author: Discord Hypno#9974, techhypno.com, tehypno@ttv
+## Author: Discord @tehypno
 ## Version: @project-version@
 ## SavedVariables: ClassicFCTCustomPresets, ClassicFCTConfig, ClassicFCTVars, ClassicFCTTables
 ## SavedVariablesPerCharacter: ClassicFCTCharConfig, ClassicFCTCharVars, ClassicFCTCharTables

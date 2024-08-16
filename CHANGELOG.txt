@@ -1,4 +1,4 @@
-0.87p   Aug 12, 2024
+0.87u   Aug 16, 2024
     - Fixed miss filter, ColorPicker and Config panels for The War Within
 
 0.87g   Sep 5, 2022
