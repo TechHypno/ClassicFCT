@@ -825,10 +825,10 @@ function CFCT:Test(n)
     local numplates = #nameplates
     local it = (numplates > 0) and (n*numplates) or n
     for i = 1, it do
-        local spellid
+        local spellinfo
         repeat
-            spellid = random(1,32767)
-        until GetSpellInfo(spellid).iconID
+            spellinfo = GetSpellInfo(random(1,32767))
+        until (spellinfo and spellinfo.iconID)
 
         local school = random(1,128)
         local pet = (random(1,3) == 1)

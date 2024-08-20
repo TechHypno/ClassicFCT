@@ -1470,9 +1470,8 @@ filteringBlacklistDropdown:HookScript("OnShow", function(self)
         local spell = GetSpellInfo(k)
         if spell.name then
             CFCT.spellIdCache[k] = true
-            -- print(format("|T%s:12:12:0:0:120:120:10:110:10:110|t|cff%s%s(%d)|r", icon, color, name, k), v)
             table.insert(FilteringBlacklistMenu, {
-                text = format("|T%s:12:12:0:0:120:120:10:110:10:110|t|cff%s%s(%d)|r", spell.icon, color, spell.name, k),
+                text = format("|T%s:12:12:0:0:120:120:10:110:10:110|t|cff%s%s(%d)|r", spell.iconID, color, spell.name, k),
                 value = k
             })
         end
@@ -1483,7 +1482,7 @@ filteringBlacklistDropdown:HookScript("OnShow", function(self)
             local spell = GetSpellInfo(k)
             if spell.name then
                 table.insert(FilteringBlacklistMenu, {
-                    text = format("|T%s:12:12:0:0:120:120:10:110:10:110|t|cff%s%s(%d)|r", spell.icon, color, spell.name, k),
+                    text = format("|T%s:12:12:0:0:120:120:10:110:10:110|t|cff%s%s(%d)|r", spell.iconID, color, spell.name, k),
                     value = k
                 })
             end
@@ -1597,7 +1596,7 @@ mergingIntervalOverrideDropdown:HookScript("OnShow", function(self)
         if spell.name then
             CFCT.spellIdCache[k] = true
             table.insert(MergeIntervalOverrideMenu, {
-                text = format("|T%s:12:12:0:0:120:120:10:110:10:110|t|cff%s%s(%d)|r", spell.icon, color, spell.name, k),
+                text = format("|T%s:12:12:0:0:120:120:10:110:10:110|t|cff%s%s(%d)|r", spell.iconID, color, spell.name, k),
                 value = k
             })
         end
@@ -1608,7 +1607,7 @@ mergingIntervalOverrideDropdown:HookScript("OnShow", function(self)
             local spell = GetSpellInfo(k)
             if spell.name then
                 table.insert(MergeIntervalOverrideMenu, {
-                    text = format("|T%s:12:12:0:0:120:120:10:110:10:110|t|cff%s%s(%d)|r", spell.icon, color, spell.name, k),
+                    text = format("|T%s:12:12:0:0:120:120:10:110:10:110|t|cff%s%s(%d)|r", spell.iconID, color, spell.name, k),
                     value = k
                 })
             end
