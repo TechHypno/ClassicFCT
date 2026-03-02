@@ -120,7 +120,7 @@ CFCT:AddDefaultPreset("Mists of Pandaria", {
         fontPath = "Fonts\\FRIZQT__.TTF",
         fontSize = 42,
         fontStyle = "",
-        fontColor = "FFFFFFFF",
+        fontColor = "FFFFE800",
         showIcons = false,
         colorByType = false,
         FadeIn = {
@@ -142,7 +142,7 @@ CFCT:AddDefaultPreset("Mists of Pandaria", {
         fontPath = "Fonts\\FRIZQT__.TTF",
         fontSize = 42,
         fontStyle = "",
-        fontColor = "FFFFFFFF",
+        fontColor = "FFFFE800",
         showIcons = false,
         colorByType = false,
         FadeIn = {
@@ -164,7 +164,7 @@ CFCT:AddDefaultPreset("Mists of Pandaria", {
         fontPath = "Fonts\\FRIZQT__.TTF",
         fontSize = 60,
         fontStyle = "",
-        fontColor = "FFFFFFFF",
+        fontColor = "FFFFE800",
         showIcons = false,
         colorByType = false,
         Pow = {
