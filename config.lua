@@ -1289,13 +1289,13 @@ local enabledCheckbox = ConfigPanel:CreateCheckbox("Enable ClassicFCT", "Enables
 
 local hideBlizzDamageCheckbox = ConfigPanel:CreateCheckbox("Hide Blizzard Damage", "Enables/Disables the default Blizzard Floating Damage Text", enabledCheckbox, "LEFT", "RIGHT", 150, 0, DefaultVars.hideBlizz, "hideBlizz")
 hideBlizzDamageCheckbox:HookScript("OnClick", function(self)
-    SetCVar("floatingCombatTextCombatDamage", self:GetChecked() and "0" or "1")
+    pcall(SetCVar, "floatingCombatTextCombatDamage", self:GetChecked() and "0" or "1")
 end)
 if (GetCVarDefault("floatingCombatTextCombatDamage") == nil) then hideBlizzDamageCheckbox:Hide() end
 
 local hideBlizzHealingCheckbox = ConfigPanel:CreateCheckbox("Hide Blizzard Healing", "Enables/Disables the default Blizzard Floating Healing Text", hideBlizzDamageCheckbox, "LEFT", "RIGHT", 150, 0, DefaultVars.hideBlizzHeals, "hideBlizzHeals")
 hideBlizzHealingCheckbox:HookScript("OnClick", function(self)
-    SetCVar("floatingCombatTextCombatHealing", self:GetChecked() and "0" or "1")
+    pcall(SetCVar, "floatingCombatTextCombatHealing", self:GetChecked() and "0" or "1")
 end)
 if (GetCVarDefault("floatingCombatTextCombatHealing") == nil) then hideBlizzDamageCheckbox:Hide() end
 

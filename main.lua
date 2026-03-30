@@ -9,6 +9,20 @@ local AbbreviateNumbers = AbbreviateNumbers
 local GetTime = GetTime
 local GetAddOnMetadata = GetAddOnMetadata or C_AddOns.GetAddOnMetadata
 
+-- Secret Values API helpers (WoW Midnight 12.0+)
+-- Amounts and booleans from CLEU may become opaque "secret values" during
+-- restricted encounters. Never do arithmetic on them directly; always guard
+-- with pcall or the helpers below.
+CFCT.restricted = false
+local function IsSecretValue(value)
+    if issecretvalue then return issecretvalue(value) end
+    return false
+end
+local function CanAccessValue(value)
+    if canaccessvalue then return canaccessvalue(value) end
+    return true
+end
+
 local GetSpellInfo_old = GetSpellInfo
 local GetSpellInfo = (type(GetSpellInfo_old) == 'function') and function(id)
     local name, rank, icon, castTime, minRange, maxRange, spellID, originalIcon = GetSpellInfo_old(id)
@@ -27,7 +41,22 @@ end or C_Spell.GetSpellInfo
 CFCT.frame = CreateFrame("Frame", "ClassicFCT.frame", UIParent)
 CFCT.Animating = {}
 CFCT.fontStringCache = {}
--- CFCT.Debug = true
+CFCT.Debug = false
+
+-- Midnight 12.0+: suppress the "action blocked" popup for this addon.
+-- SetCVar for FCT CVars is now a protected action; we handle it with pcall
+-- below, so the popup is just noise.
+do
+    local _origShow = StaticPopup_Show
+    StaticPopup_Show = function(which, text_arg1, ...)
+        if which == "ADDON_ACTION_FORBIDDEN"
+        and type(text_arg1) == "string"
+        and text_arg1:find("ClassicFCT", 1, true) then
+            return nil
+        end
+        return _origShow(which, text_arg1, ...)
+    end
+end
 
 local now = GetTime()
 local f = CFCT.frame
@@ -52,6 +81,7 @@ local rollingAverageTimer = 0
 local damageCache = {}
 local function AddToAverage(value)
     if CFCT._testMode and not InCombatLockdown() then return end
+    if IsSecretValue(value) then return end  -- skip opaque secret values
     tinsert(damageCache, {
         value = value,
         time = now
@@ -511,9 +541,13 @@ local function UpdateFontParent(self)
     local fctConfig = CFCT.Config
     local nameplate = UnitExists(self.state.unit) and GetNamePlateForUnit(self.state.unit) or false
     local attach
-    if ((fctConfig.attachMode == "tn") or (fctConfig.attachMode == "en")) and nameplate then
+    local isNameplateMode = (fctConfig.attachMode == "tn") or (fctConfig.attachMode == "en")
+    if isNameplateMode and nameplate then
         attach = nameplate
-    elseif (fctConfig.attachMode == "sc") or (fctConfig.attachModeFallback == true) then
+    elseif isNameplateMode or (fctConfig.attachMode == "sc") or fctConfig.attachModeFallback then
+        -- Nameplate-based modes always fall back to screen-center when the nameplate is
+        -- gone (target died the same frame the hit landed, or moved out of nameplate range),
+        -- so in-flight animations complete rather than silently disappearing.
         attach = f
     else
         attach = false
@@ -650,27 +684,63 @@ end
 
 
 local function DispatchText(guid, event, text, amount, spellid, spellicon, periodic, crit, miss, pet, school, count)
-    local cat = (pet and "pet" or "")..event..(periodic and "tick" or "")..(crit and "crit" or miss and "miss" or "")
+    -- Guard: crit/periodic/miss may be secret values if they slipped past the CLEU normalizer
+    local critSafe, periodicSafe, missSafe = false, false, false
+    pcall(function() critSafe = crit == true end)
+    pcall(function() periodicSafe = periodic and true or false end)
+    pcall(function() missSafe = miss == true end)
+    local cat = (pet and "pet" or "")..event..(periodicSafe and "tick" or "")..(critSafe and "crit" or missSafe and "miss" or "")
     local fctConfig = CFCT.Config
     local catConfig = fctConfig[cat]
+    -- If catConfig is nil the category is unknown (shouldn't happen with a full preset, but guard it)
+    if not catConfig then return end
+    if CFCT.Debug then
+        -- Only print for the first few events to avoid chat spam
+        if not CFCT._debugCount then CFCT._debugCount = 0 end
+        CFCT._debugCount = CFCT._debugCount + 1
+        if CFCT._debugCount <= 20 then
+            print(string.format("|cFF44CCFFCFCT|r #%d DispatchText: event=%s cat=%s crit=%s critSafe=%s catConfig=%s",
+                CFCT._debugCount, tostring(event), tostring(cat),
+                tostring(crit), tostring(critSafe),
+                catConfig and "OK" or "|cFFFF4444NIL|r"))
+        end
+    end
     text = text or tostring(amount)
     -- TODO put fctConfig and catConfig into state
 
     count = count or 1
     if (not miss) then
-        if (not crit) then
-            AddToAverage(amount / count)
-        end
-        if (fctConfig.filterAbsoluteEnabled and (fctConfig.filterAbsoluteThreshold > amount))
-        or (fctConfig.filterRelativeEnabled and ((fctConfig.filterRelativeThreshold * 0.01 * CFCT:UnitHealthMax('player')) > amount))
-        or (fctConfig.filterAverageEnabled and ((fctConfig.filterAverageThreshold * 0.01 * CFCT:DamageRollingAverage()) > amount)) then
-            return false
+        -- Guard: crit flag may be a secret value; pcall the boolean check
+        local critOk, critVal = pcall(function() return not crit end)
+        if critOk and critVal then
+            -- Guard: amount may be a secret value; guard arithmetic
+            local avgOk = pcall(AddToAverage, amount / count)
+            -- avgOk failure is silently ignored; rolling average just misses this sample
+            _ = avgOk
         end
 
-        if (fctConfig.abbreviateNumbers) then
-            text = AbbreviateNumbers(amount)
-        elseif (fctConfig.kiloSeparator) then
-            text = FormatThousandSeparator(amount)
+        -- Guard filter comparisons against secret value arithmetic failures
+        local filterPassed = false
+        pcall(function()
+            filterPassed = (fctConfig.filterAbsoluteEnabled and (fctConfig.filterAbsoluteThreshold > amount))
+                or (fctConfig.filterRelativeEnabled and ((fctConfig.filterRelativeThreshold * 0.01 * CFCT:UnitHealthMax('player')) > amount))
+                or (fctConfig.filterAverageEnabled and ((fctConfig.filterAverageThreshold * 0.01 * CFCT:DamageRollingAverage()) > amount))
+        end)
+        if filterPassed then return false end
+
+        -- Guard number formatting: secret values cannot be passed to format()
+        -- If the value is inaccessible, pass it raw to SetText (WoW renders it correctly)
+        if not IsSecretValue(amount) then
+            if (fctConfig.abbreviateNumbers) then
+                local fmtOk, fmtResult = pcall(AbbreviateNumbers, amount)
+                if fmtOk then text = fmtResult end
+            elseif (fctConfig.kiloSeparator) then
+                local fmtOk, fmtResult = pcall(FormatThousandSeparator, amount)
+                if fmtOk then text = fmtResult end
+            end
+        else
+            -- Secret value: let WoW render it natively via its __tostring metamethod
+            text = amount
         end
     end
     
@@ -803,7 +873,9 @@ local function ProcessCachedEvents()
             end
         else
             for _,e in ipairs(record.events) do
-                local text = (e.amount ~= 0) and e.amount or e.text
+                -- Note: `text` was computed here but never used (DispatchText takes e.text
+                -- directly). The dead computation was removed because it crashed on secret
+                -- amounts: (e.amount ~= 0) throws when e.amount is a secret value.
                 DispatchText(e.guid, e.event, e.text, e.amount, e.spellid, e.spellicon, e.periodic, e.crit, e.miss, e.pet, e.school)
             end
             eventCache[id] = nil
@@ -857,7 +929,7 @@ local function checkCvars()
         local cvarHideDamage = GetCVar("floatingCombatTextCombatDamage")
         if not (cvarHideDamage == varHideDamage) then
             if CFCT.forceCVars then
-                SetCVar("floatingCombatTextCombatDamage", varHideDamage)
+                pcall(SetCVar, "floatingCombatTextCombatDamage", varHideDamage)
             else
                 CFCT.hideBlizz = (cvarHideDamage == "0")
             end
@@ -868,7 +940,7 @@ local function checkCvars()
         local cvarHideHealing = GetCVar("floatingCombatTextCombatHealing")
         if not (cvarHideHealing == varHideHealing) then
             if CFCT.forceCVars then
-                SetCVar("floatingCombatTextCombatHealing", varHideHealing)
+                pcall(SetCVar, "floatingCombatTextCombatHealing", varHideHealing)
             else
                 CFCT.hideBlizzHeals = (cvarHideHealing == "0")
             end
@@ -885,7 +957,8 @@ local events = {
     PLAYER_LOGOUT = true,
     PLAYER_ENTERING_WORLD = true,
     NAME_PLATE_UNIT_ADDED = true,
-    NAME_PLATE_UNIT_REMOVED = true
+    NAME_PLATE_UNIT_REMOVED = true,
+    ADDON_RESTRICTION_STATE_CHANGED = true  -- Midnight 12.0+: fires when Secret Values restrictions change
 }
 for e,_ in pairs(events) do f:RegisterEvent(e) end
 f:SetScript("OnEvent", function(self, event, ...) self[event](self, ...) end)
@@ -893,10 +966,24 @@ f:SetScript("OnEvent", function(self, event, ...) self[event](self, ...) end)
 local function SortByUnit(allFrames)
     local fctConfig = CFCT.Config
     local animAreas = {target={}}
+    -- In "en" mode, refresh the persistent nameplate-GUID cache from all currently-
+    -- visible nameplates before resolving any frame.  This closes the race window
+    -- where a CLEU hit fires in the same event-queue pass as NAME_PLATE_UNIT_ADDED,
+    -- so the persistent cache hasn't been populated yet when the first SortByUnit
+    -- call runs.  One O(40) scan per frame is negligible.
+    if fctConfig.attachMode == "en" then
+        CFCT:RefreshNameplateCache()
+    end
     for k, frame in ipairs(allFrames) do
         local state = frame.state
         if (fctConfig.attachMode == "en") then
             state.unit = CFCT:GetNamePlateUnitByGUID(state.guid) or ""
+        elseif (fctConfig.attachMode == "tn") then
+            -- Resolve the actual hit target's nameplate unit so that AoE/DoT/multi-target
+            -- hits each appear above the correct enemy rather than all piling onto the
+            -- currently-selected target's nameplate.  Fall back to "target" when the
+            -- nameplate is not visible (e.g. out of range or already dead).
+            state.unit = CFCT:GetNamePlateUnitByGUID(state.guid) or "target"
         else
             state.unit = "target"
         end
@@ -979,24 +1066,93 @@ function f:PLAYER_LOGOUT()
     CFCT.Config:OnSave()
 end
 
-local playerGUID
+local playerGUID = UnitGUID("player")  -- init immediately; refreshed on zone change below
+
+-- Non-crit categories must never use Pow animation (Pow is only for crits).
+-- Saved vars from older sessions may have Pow.enabled=true; sanitize on every load.
+local NON_CRIT_CATS = {
+    "auto","automiss",
+    "spell","spellmiss","spelltick","spelltickmiss",
+    "heal","healmiss","healtick","healtickmiss",
+    "petauto","petautomiss",
+    "petspell","petspellmiss","petspelltick","petspelltickmiss",
+    "petheal","pethealmiss","pethealtick","pethealtickmiss",
+}
+
 function f:PLAYER_ENTERING_WORLD()
     playerGUID = UnitGUID("player")
+    -- Refresh restriction state on every zone transition so the UNIT_COMBAT fallback
+    -- is only active when CLEU is actually blocked by the Secret Values system.
+    if C_RestrictedActions and C_RestrictedActions.IsAddOnRestrictionActive then
+        local ok, result = pcall(C_RestrictedActions.IsAddOnRestrictionActive, 0)
+        CFCT.restricted = ok and result or false
+    end
+    if CFCT.Config then
+        -- Sanitize: ensure non-crit categories never run Pow animation.
+        -- Saved vars from older sessions may have Pow.enabled=true; force it off.
+        for _, cat in ipairs(NON_CRIT_CATS) do
+            local cc = CFCT.Config[cat]
+            if cc and cc.Pow then
+                cc.Pow.enabled = false
+            end
+        end
+        -- Migrate: several categories used to be FFFFFFFF (white) in older saves;
+        -- update them to yellow so they are visible. Only migrate the old white value.
+        local WHITE = "FFFFFFFF"
+        local YELLOW = "FFFFE800"
+        for _, cat in ipairs({
+            "auto","automiss","autocrit",
+            -- spell (direct-damage) categories — crits from multihit spells land here
+            "spell","spellmiss","spellcrit",
+            "spelltick","spelltickmiss","spelltickcrit",
+            -- pet spell categories
+            "petspell","petspellmiss","petspellcrit",
+            "petspelltick","petspelltickmiss","petspelltickcrit",
+            -- heal tick categories (direct heals stay green; only stale-white ticks need fixing)
+            "healtick","healtickmiss",
+            "pethealtick","pethealtickmiss",
+        }) do
+            local cc = CFCT.Config[cat]
+            if cc and cc.fontColor == WHITE then
+                cc.fontColor = YELLOW
+            end
+        end
+    end
 end
 
 local nameplates = {}
 function f:NAME_PLATE_UNIT_ADDED(unit)
     local guid = UnitGUID(unit)
-    nameplates[unit] = guid
-    nameplates[guid] = unit 
+    if guid and not IsSecretValue(guid) then
+        nameplates[unit] = guid
+        nameplates[guid] = unit
+    end
 end
 function f:NAME_PLATE_UNIT_REMOVED(unit)
     local guid = nameplates[unit]
     nameplates[unit] = nil
-    nameplates[guid] = nil
+    if guid then nameplates[guid] = nil end
 end
 function CFCT:GetNamePlateUnitByGUID(guid)
+    if not guid or IsSecretValue(guid) then return nil end
     return nameplates[guid]
+end
+-- Scan all currently-visible nameplates and fill any missing GUID entries.
+-- Called once per SortByUnit pass when in "en" mode so that per-enemy routing
+-- works even when NAME_PLATE_UNIT_ADDED fires in the same frame as the CLEU hit
+-- (a common race condition where the event queue runs CLEU before the nameplate
+-- add notification reaches us).
+function CFCT:RefreshNameplateCache()
+    for i = 1, 40 do
+        local np = "nameplate" .. i
+        if UnitExists(np) then
+            local g = UnitGUID(np)
+            if g and not IsSecretValue(g) and not nameplates[g] then
+                nameplates[np] = g
+                nameplates[g] = np
+            end
+        end
+    end
 end
 
 local unitHealthMax = {}
@@ -1007,6 +1163,14 @@ function f:UNIT_MAXHEALTH(unit)
 end
 function CFCT:UnitHealthMax(unit)
     return unitHealthMax[unit] or UnitHealthMax(unit)
+end
+
+-- Midnight 12.0+: track addon restriction state so other code can react
+function f:ADDON_RESTRICTION_STATE_CHANGED()
+    if C_RestrictedActions and C_RestrictedActions.IsAddOnRestrictionActive then
+        local ok, result = pcall(C_RestrictedActions.IsAddOnRestrictionActive, 0)
+        CFCT.restricted = ok and result or false
+    end
 end
 
 
@@ -1072,44 +1236,142 @@ local CLEU_HEALING_EVENT = {
 --     ["RESIST"] = "Resisted",
 -- }
 
+-- Dedup table: CLEU marks events so the UNIT_COMBAT fallback can skip them
+local cleuDedup = {}
+local CLEU_DEDUP_WINDOW = 0.15
+-- Track the last time CLEU successfully identified a player/pet event.
+-- UNIT_COMBAT is suppressed while CLEU is working; it takes over automatically
+-- when CLEU fails (e.g. Midnight secret-value restrictions outside formal encounters).
+local lastCLEUPlayerEventTime = 0
+local CLEU_PLAYER_EVENT_WINDOW = 3  -- seconds
+local function MarkCLEU(amount, tag)
+    cleuDedup[tostring(amount) .. tag] = GetTime()
+end
+local function IsCLEUDuplicate(amount, tag)
+    local key = tostring(amount) .. tag
+    local t = cleuDedup[key]
+    if t and (GetTime() - t) <= CLEU_DEDUP_WINDOW then
+        cleuDedup[key] = nil
+        return true
+    end
+    return false
+end
+
 function f:COMBAT_LOG_EVENT_UNFILTERED()
     if CFCT.enabled == false then return end
-    local timestamp, cleuEvent, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, arg12, arg13, arg14, arg15, arg16, arg17, arg18, arg19, arg20, arg21, arg22, arg23, arg24, arg25 = CombatLogGetCurrentEventInfo()
-    local playerEvent, petEvent = (playerGUID == sourceGUID), false
-    if not playerEvent then petEvent = (bitband(sourceFlags, COMBATLOG_OBJECT_TYPE_GUARDIAN) > 0 or bitband(sourceFlags, COMBATLOG_OBJECT_TYPE_PET) > 0) and (bitband(sourceFlags, COMBATLOG_OBJECT_AFFILIATION_MINE) > 0) end
-    if not (playerEvent or petEvent) then return end
-    if (destGUID == playerGUID) then return end
-    -- local unit = nameplates[destGUID]
-    local guid = destGUID
-    if CLEU_DAMAGE_EVENT[cleuEvent] then
-        if CLEU_SWING_EVENT[cleuEvent] then
-            local amount,overkill,school,resist,block,absorb,crit,glancing,crushing,offhand = arg12,arg13,arg14,arg15,arg16,arg17,arg18,arg19,arg20,arg21
-            self:DamageEvent(guid, nil, amount, nil, crit, petEvent, school)
-        else --its a SPELL event
-            local periodic = cleuEvent:find("SPELL_PERIODIC", 1, true)
-            local spellid,spellname,school1,amount,overkill,school2,resist,block,absorb,crit,glancing,crushing,offhand = arg12,arg13,arg14,arg15,arg16,arg17,arg18,arg19,arg20,arg21,arg22,arg23,arg24
-            if (spellid == 0 and IsClassic) then spellid = spellname end
-            self:DamageEvent(guid, spellid, amount, periodic, crit, petEvent, school1)
+    -- Wrap the entire handler: in Midnight (12.0+) CombatLogGetCurrentEventInfo()
+    -- may fail under addon restrictions, and returned amounts/booleans may be
+    -- opaque "secret values" that throw on arithmetic. pcall keeps us safe.
+    local ok, err = pcall(function()
+        local timestamp, cleuEvent, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, arg12, arg13, arg14, arg15, arg16, arg17, arg18, arg19, arg20, arg21, arg22, arg23, arg24, arg25 = CombatLogGetCurrentEventInfo()
+
+        -- Guard: sourceGUID/sourceFlags may be secret values; wrap in nested pcall
+        -- so a failure here doesn't abort event dispatch for valid events.
+        local playerEvent, petEvent = false, false
+        local sourceOk = pcall(function()
+            playerEvent = (playerGUID == sourceGUID)
+            if not playerEvent then
+                petEvent = (bitband(sourceFlags, COMBATLOG_OBJECT_TYPE_GUARDIAN) > 0
+                    or bitband(sourceFlags, COMBATLOG_OBJECT_TYPE_PET) > 0)
+                    and (bitband(sourceFlags, COMBATLOG_OBJECT_AFFILIATION_MINE) > 0)
+            end
+        end)
+        if CFCT.Debug and not CFCT._cleuGUIDShown then
+            CFCT._cleuGUIDShown = true
+            print(string.format("|cFF44FFFFCFCT|r CLEU GUID: playerGUID=%s sourceGUID=%s playerEvent=%s",
+                tostring(playerGUID), tostring(sourceGUID), tostring(playerEvent)))
         end
-    elseif CLEU_MISS_EVENT[cleuEvent] then
-        if CLEU_SWING_EVENT[cleuEvent] then
-            local misstype,_,amount = arg12,arg13,arg14
-            self:MissEvent(guid, nil, amount, nil, misstype, petEvent, SCHOOL_MASK_PHYSICAL)
-        else --its a SPELL event
-            local periodic = cleuEvent:find("SPELL_PERIODIC", 1, true)
-            local spellid,spellname,school1,misstype,_,amount = arg12,arg13,arg14,arg15,arg16,arg17
-            if (spellid == 0 and IsClassic) then spellid = spellname end
-            self:MissEvent(guid, spellid, amount, periodic, misstype, petEvent, school1)
+        if not sourceOk then
+            if CFCT.Debug then
+                if not CFCT._cleuSrcErrCount then CFCT._cleuSrcErrCount = 0 end
+                CFCT._cleuSrcErrCount = CFCT._cleuSrcErrCount + 1
+                if CFCT._cleuSrcErrCount <= 3 then
+                    print("|cFFFF4444CFCT|r CLEU source-detection threw; skipping event")
+                end
+            end
+            return  -- cannot determine ownership; skip safely
         end
-    elseif CLEU_HEALING_EVENT[cleuEvent] then
-        if CLEU_SWING_EVENT[cleuEvent] then
-            local amount,overheal,absorb,crit = arg12,arg13,arg14,arg15
-            self:HealingEvent(guid, nil, amount, nil, crit, petEvent, nil)
-        else --its a SPELL event
-            local periodic = cleuEvent:find("SPELL_PERIODIC", 1, true)
-            local spellid,spellname,school1,amount,overheal,absorb,crit = arg12,arg13,arg14,arg15,arg16,arg17,arg18
-            if (spellid == 0 and IsClassic) then spellid = spellname end
-            self:HealingEvent(guid, spellid, amount, periodic, crit, petEvent, school1)
+        if not (playerEvent or petEvent) then return end
+        -- Record that CLEU is successfully resolving player ownership right now;
+        -- UNIT_COMBAT will stand down for the next CLEU_PLAYER_EVENT_WINDOW seconds.
+        lastCLEUPlayerEventTime = GetTime()
+        -- Skip if WE are the target, EXCEPT for healing events (self-heals/self-absorbs are valid)
+        if (destGUID == playerGUID) and not CLEU_HEALING_EVENT[cleuEvent] then return end
+        -- local unit = nameplates[destGUID]
+        local guid = destGUID
+        -- Helper: normalize a CLEU boolean (may be a secret value) to plain Lua bool
+        local function safeBool(v)
+            local ok, result = pcall(function() return v == true end)
+            return ok and result or false
+        end
+
+        if CLEU_DAMAGE_EVENT[cleuEvent] then
+            if CLEU_SWING_EVENT[cleuEvent] then
+                local amount,overkill,school,resist,block,absorb,crit,glancing,crushing,offhand = arg12,arg13,arg14,arg15,arg16,arg17,arg18,arg19,arg20,arg21
+                if CFCT.Debug then
+                    if not CFCT._cleuDispatchCount then CFCT._cleuDispatchCount = 0 end
+                    CFCT._cleuDispatchCount = CFCT._cleuDispatchCount + 1
+                    if CFCT._cleuDispatchCount <= 10 then
+                        print(string.format("|cFF44FF44CFCT|r CLEU dispatch SWING: cleuEvent=%s crit=%s", tostring(cleuEvent), tostring(crit)))
+                    end
+                end
+                -- Dispatch FIRST so a MarkCLEU failure cannot abort event processing
+                f:DamageEvent(guid, nil, amount, nil, safeBool(crit), petEvent, school)
+                pcall(MarkCLEU, amount, "dmg")
+            else --its a SPELL event
+                local periodic = cleuEvent:find("SPELL_PERIODIC", 1, true)
+                local spellid,spellname,school1,amount,overkill,school2,resist,block,absorb,crit,glancing,crushing,offhand = arg12,arg13,arg14,arg15,arg16,arg17,arg18,arg19,arg20,arg21,arg22,arg23,arg24
+                if (spellid == 0 and IsClassic) then spellid = spellname end
+                -- Guard: spellid and school may be secret values in restricted encounters.
+                -- SpellIconText(secretID) throws inside DamageEvent and silently drops the event.
+                if IsSecretValue(spellid) then spellid = nil end
+                if IsSecretValue(school1) then school1 = nil end
+                if CFCT.Debug then
+                    if not CFCT._cleuDispatchCount then CFCT._cleuDispatchCount = 0 end
+                    CFCT._cleuDispatchCount = CFCT._cleuDispatchCount + 1
+                    if CFCT._cleuDispatchCount <= 10 then
+                        print(string.format("|cFF44FF44CFCT|r CLEU dispatch SPELL: cleuEvent=%s spellid=%s crit=%s", tostring(cleuEvent), tostring(spellid), tostring(crit)))
+                    end
+                end
+                f:DamageEvent(guid, spellid, amount, periodic, safeBool(crit), petEvent, school1)
+                pcall(MarkCLEU, amount, "dmg")
+            end
+        elseif CLEU_MISS_EVENT[cleuEvent] then
+            if CLEU_SWING_EVENT[cleuEvent] then
+                local misstype,_,amount = arg12,arg13,arg14
+                f:MissEvent(guid, nil, amount, nil, misstype, petEvent, SCHOOL_MASK_PHYSICAL)
+                pcall(MarkCLEU, 0, misstype)
+            else --its a SPELL event
+                local periodic = cleuEvent:find("SPELL_PERIODIC", 1, true)
+                local spellid,spellname,school1,misstype,_,amount = arg12,arg13,arg14,arg15,arg16,arg17
+                if (spellid == 0 and IsClassic) then spellid = spellname end
+                if IsSecretValue(spellid) then spellid = nil end
+                if IsSecretValue(school1) then school1 = nil end
+                f:MissEvent(guid, spellid, amount, periodic, misstype, petEvent, school1)
+                pcall(MarkCLEU, 0, misstype)
+            end
+        elseif CLEU_HEALING_EVENT[cleuEvent] then
+            if CLEU_SWING_EVENT[cleuEvent] then
+                local amount,overheal,absorb,crit = arg12,arg13,arg14,arg15
+                f:HealingEvent(guid, nil, amount, nil, safeBool(crit), petEvent, nil)
+                pcall(MarkCLEU, amount, "heal")
+            else --its a SPELL event
+                local periodic = cleuEvent:find("SPELL_PERIODIC", 1, true)
+                local spellid,spellname,school1,amount,overheal,absorb,crit = arg12,arg13,arg14,arg15,arg16,arg17,arg18
+                if (spellid == 0 and IsClassic) then spellid = spellname end
+                if IsSecretValue(spellid) then spellid = nil end
+                if IsSecretValue(school1) then school1 = nil end
+                f:HealingEvent(guid, spellid, amount, periodic, safeBool(crit), petEvent, school1)
+                pcall(MarkCLEU, amount, "heal")
+            end
+        end
+    end)
+    -- Only log CLEU failures (successes are confirmed by "CLEU dispatch" messages above)
+    if CFCT.Debug and not ok then
+        if not CFCT._cleuErrCount then CFCT._cleuErrCount = 0 end
+        CFCT._cleuErrCount = CFCT._cleuErrCount + 1
+        if CFCT._cleuErrCount <= 3 then
+            print("|cFFFF4444CFCT|r CLEU pcall FAILED: " .. tostring(err))
         end
     end
 end
@@ -1118,12 +1380,17 @@ end
 
 
 function f:DamageEvent(guid, spellid, amount, periodic, crit, pet, school, dot)
+    -- Guard: spellid may be a secret value if it came from UNIT_SPELLCAST_SUCCEEDED
+    -- during a restricted encounter; treat it as a plain auto-attack in that case.
+    if IsSecretValue(spellid) then spellid = nil end
     spellid = spellid or 6603 -- 6603 = Auto Attack
     local event = ((spellid == 75) or (spellid == 6603)) and "auto" or "spell" -- 75 = autoshot
     local spellicon = spellid and SpellIconText(spellid) or ""
     CacheEvent(guid, event, amount, nil, spellid, spellicon, periodic, crit, false, pet, school)
 end
 function f:MissEvent(guid, spellid, amount, periodic, misstype, pet, school)
+    -- Guard: same secret spellid protection as DamageEvent
+    if IsSecretValue(spellid) then spellid = nil end
     spellid = spellid or 6603 -- 6603 = Auto Attack
     local event = ((spellid == 75) or (spellid == 6603)) and "auto" or "spell" -- 75 = autoshot
     local spellicon = spellid and SpellIconText(spellid) or ""
@@ -1133,6 +1400,102 @@ function f:HealingEvent(guid, spellid, amount, periodic, crit, pet, school)
     local event = "heal"
     local spellicon = spellid and SpellIconText(spellid) or ""
     CacheEvent(guid, event, amount, nil, spellid, spellicon, periodic, crit, false, pet, school)
+end
+
+
+-------------------------------------------------------------------------------
+-- UNIT_COMBAT fallback (WoW Midnight 12.0+)
+--
+-- When CLEU is restricted and the pcall above fails silently, UNIT_COMBAT
+-- still fires and provides basic damage/heal info for the target.
+-- We use the dedup table to skip events already handled by CLEU.
+--
+-- UNIT_COMBAT args: unitTarget, action, flagText, amount, schoolMask
+--   action:   "WOUND" (damage), "HEAL", "BLOCK", "DODGE", "PARRY", "MISS", etc.
+--   flagText: "CRITICAL", "CRUSHING", "GLANCING", or ""
+-------------------------------------------------------------------------------
+
+local UC_MISS_ACTIONS = {
+    BLOCK = true, DODGE = true, PARRY = true, MISS = true,
+    IMMUNE = true, DEFLECT = true, REFLECT = true,
+    RESIST = true, ABSORB = true, EVADE = true,
+}
+
+local ucFrame = CreateFrame("Frame")
+local hasUnitCombat = false
+
+-- Attempt to register for unit-specific UNIT_COMBAT events (preferred)
+local ucRegOk = pcall(function()
+    ucFrame:RegisterUnitEvent("UNIT_COMBAT", "player", "target")
+end)
+if ucRegOk then
+    hasUnitCombat = true
+else
+    -- Fallback to global UNIT_COMBAT (fires for all units)
+    local ucRegOk2 = pcall(function() ucFrame:RegisterEvent("UNIT_COMBAT") end)
+    if ucRegOk2 then hasUnitCombat = true end
+end
+
+if hasUnitCombat then
+    -- Re-register when target changes so we always track the current target
+    local ucTargetFrame = CreateFrame("Frame")
+    ucTargetFrame:RegisterEvent("PLAYER_TARGET_CHANGED")
+    ucTargetFrame:SetScript("OnEvent", function()
+        pcall(function()
+            ucFrame:RegisterUnitEvent("UNIT_COMBAT", "player", "target")
+        end)
+    end)
+
+    ucFrame:SetScript("OnEvent", function(self, event, unit, action, flagText, amount, schoolMask)
+        if CFCT.enabled == false then return end
+        if unit ~= "target" then return end
+        -- UNIT_COMBAT has no source information: it fires for every source that hits the
+        -- current target (player, party members, pets, everyone).  Suppress it while CLEU
+        -- is successfully resolving player/pet ownership — if CLEU has fired a confirmed
+        -- player event in the last CLEU_PLAYER_EVENT_WINDOW seconds, we don't need this
+        -- fallback and showing it would duplicate or misattribute other players' hits
+        -- (bugs 3 & 4).  When CLEU fails (Midnight secret-value restrictions, phasing,
+        -- etc.) the window expires naturally and UNIT_COMBAT takes over automatically.
+        if (GetTime() - lastCLEUPlayerEventTime) < CLEU_PLAYER_EVENT_WINDOW then return end
+
+        local guid = UnitGUID("target")
+        if not guid then return end  -- no target at all
+        -- In instances, delves, and grouped content, UnitGUID("target") returns a secret
+        -- value and we cannot compare it to playerGUID. Proceed anyway — "target" is the
+        -- player's selected enemy, not themselves. Only skip when guid is a plain value
+        -- that matches the player (prevents showing self-inflicted damage).
+        if not IsSecretValue(guid) and guid == playerGUID then return end
+
+        -- guard: isCrit comparison on flagText (plain string, always safe)
+        local isCrit = (flagText == "CRITICAL")
+
+        if CFCT.Debug then
+            if not CFCT._ucDebugCount then CFCT._ucDebugCount = 0 end
+            CFCT._ucDebugCount = CFCT._ucDebugCount + 1
+            if CFCT._ucDebugCount <= 10 then
+                print(string.format("|cFFFFCC44CFCT|r UNIT_COMBAT: unit=%s action=%s flagText=%s isCrit=%s amount=%s",
+                    tostring(unit), tostring(action), tostring(flagText), tostring(isCrit), tostring(amount)))
+            end
+        end
+
+        if action == "WOUND" then
+            -- Skip if CLEU already handled this damage event.
+            -- No spell-ID attribution here: UNIT_COMBAT is a restricted-mode fallback
+            -- only; guessing spellIDs from UNIT_SPELLCAST_SUCCEEDED caused misattribution
+            -- for DoTs (tick long after cast) and multi-hit abilities.
+            if not IsCLEUDuplicate(amount, "dmg") then
+                f:DamageEvent(guid, nil, amount, nil, isCrit, false, schoolMask)
+            end
+        elseif action == "HEAL" then
+            if not IsCLEUDuplicate(amount, "heal") then
+                f:HealingEvent(guid, nil, amount, nil, isCrit, false, schoolMask)
+            end
+        elseif UC_MISS_ACTIONS[action] then
+            if not IsCLEUDuplicate(0, action) then
+                f:MissEvent(guid, nil, 0, nil, action, false, schoolMask or SCHOOL_MASK_PHYSICAL)
+            end
+        end
+    end)
 end
 
 
